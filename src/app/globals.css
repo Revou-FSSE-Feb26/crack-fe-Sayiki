@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  /* Konfigurasi Palet Warna Studio Minimalis */
+  --color-brand-lightBg: #F8FAFC;    /* Latar belakang utama (off-white) */
+  --color-brand-sidebar: #FFFFFF;    /* Latar belakang container/card/navbar */
+  --color-brand-navy: #1A3673;       /* Aksen Utama (Biru pekat untuk tombol & header) */
+  --color-brand-terracotta: #B85C56; /* Aksen Sekunder (Merah pudar untuk link/danger) */
+  --color-brand-mustard: #DE9337;    /* Aksen Tersier (Kuning hangat untuk status pending) */
+  --color-brand-border: #E2E8F0;     /* Garis pembatas yang tipis & clean */
+  --color-brand-textMain: #0F172A;   /* Teks utama (slate pekat) */
+  --color-brand-textMuted: #64748B;  /* Teks sekunder/deskripsi */
+}
+
+body {
+  background-color: var(--color-brand-lightBg);
+  color: var(--color-brand-textMain);
+  font-family: sans-serif;
+}

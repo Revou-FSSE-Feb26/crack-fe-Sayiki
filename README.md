@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SwitchLab - Mechanical Keyboard Marketplace
 
-## Getting Started
+A Next.js marketplace connecting keyboard enthusiasts with expert modders and premium components.
 
-First, run the development server:
+## 🎯 Features
+
+### Core Pages
+- **Homepage**: Hero section, category browser, featured services & products
+- **Modder Directory**: Filterable directory with trust scores, locations, and audio samples
+- **Product Detail**: E-commerce layout for ready-stock items with variations and shipping
+- **Service Detail**: Booking system with configuration options and escrow process
+- **Search Results**: Toggle filters for services vs products
+
+### Design System
+- **Clear Visual Badges**: Purple [SERVICE] vs Green [READY STOCK] badges
+- **Consistent Card Layout**: Same structure, different interactive panels
+- **Two-Column Detail Pages**: 60% content, 40% dynamic booking/purchase panel
+- **Professional Brand Colors**: Navy primary, terracotta accent, clean grays
+
+## 🚀 Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── page.tsx              # Homepage with hero & cards
+│   ├── modders/page.tsx      # Modder discovery directory  
+│   ├── search/page.tsx       # Search results with filters
+│   ├── service/[id]/page.tsx # Service booking page
+│   ├── product/[id]/page.tsx # Product purchase page
+│   ├── login/page.tsx        # Authentication
+│   └── layout.tsx            # Navigation & footer
+├── components/
+│   ├── Button.tsx            # Reusable button component
+│   └── Input.tsx             # Form input component
+public/images/
+├── hero.jpg                  # Hero background
+├── lubing-switches.webp      # Service images
+├── stabs.webp               # Stabilizer work
+├── switches.jpg             # Product images
+└── prebuilt-kb.webp         # Custom builds
+```
 
-## Learn More
+## 🛠️ Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework**: Next.js 16.2.9 (App Router)
+- **Styling**: Tailwind CSS 4 with custom brand colors
+- **Language**: TypeScript
+- **Icons**: Custom SVG icons in /public
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 Design Philosophy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Card-Based UI
+- **Services**: Configuration-heavy booking with escrow
+- **Products**: Standard e-commerce with cart/buy now
+- **Modders**: Trust-focused profiles with audio samples
 
-## Deploy on Vercel
+### Specialized Filters
+- **Location**: For shipping calculations (Jakarta, Bandung, etc.)
+- **Specialties**: Lubing, Soldering, Hall Effect, etc.
+- **Equipment**: Professional tools (Ultrasonic Cleaner, etc.)
+- **Turnaround**: Express (1-2 days) vs Standard (3-5 days)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔧 Key Components
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Service Booking Panel
+- Switch type selection (Linear/Tactile/Clicky)
+- Quantity selector with live pricing
+- Add-ons (Films, Stabilizer tuning)
+- Escrow payment system
+
+### Product Purchase Panel  
+- Variation selector (70x/90x/110x packs)
+- Stock-aware quantity controls
+- Shipping options (Instant/Same Day/Regular)
+- Cart and direct purchase options
+
+### Modder Profile Cards
+- Status indicators (Accepting/Queue Full/On Break)
+- Trust scores with review counts
+- Specialty tags and equipment lists
+- Sound test audio players
+
+## 📱 Responsive Design
+- Mobile-first approach
+- Collapsible sidebar filters
+- Touch-friendly card interactions
+- Optimized image loading
+
+Built for the mechanical keyboard community with attention to the details that matter most to enthusiasts.

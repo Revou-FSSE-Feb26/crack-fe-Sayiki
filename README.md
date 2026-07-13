@@ -11,11 +11,6 @@ A Next.js marketplace connecting keyboard enthusiasts with expert modders and pr
 - **Service Detail**: Booking system with configuration options and escrow process
 - **Search Results**: Toggle filters for services vs products
 
-### Design System
-- **Clear Visual Badges**: Purple [SERVICE] vs Green [READY STOCK] badges
-- **Consistent Card Layout**: Same structure, different interactive panels
-- **Two-Column Detail Pages**: 60% content, 40% dynamic booking/purchase panel
-- **Professional Brand Colors**: Navy primary, terracotta accent, clean grays
 
 ## 🚀 Quick Start
 
@@ -89,10 +84,5 @@ public/images/
 - Specialty tags and equipment lists
 - Sound test audio players
 
-## 📱 Responsive Design
-- Mobile-first approach
-- Collapsible sidebar filters
-- Touch-friendly card interactions
-- Optimized image loading
 
 Built for the mechanical keyboard community with attention to the details that matter most to enthusiasts.

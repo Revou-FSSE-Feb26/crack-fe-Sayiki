@@ -53,10 +53,12 @@ export default function ServiceDetailPage() {
       {/* Breadcrumbs */}
       <div className="bg-brand-sidebar border-b border-brand-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="text-sm text-brand-textMuted">
-            <a href="/" className="hover:text-brand-navy">Home</a> &gt; 
-            <a href="#" className="hover:text-brand-navy"> {serviceData.provider}</a> &gt; 
-            <span className="text-brand-textMain"> {serviceData.title}</span>
+          <nav className="text-sm text-brand-textMuted flex items-center gap-2">
+            <a href="/" className="hover:text-brand-navy">Home</a>
+            <span>&gt;</span>
+            <a href="#" className="hover:text-brand-navy">{serviceData.provider}</a>
+            <span>&gt;</span>
+            <span className="text-brand-textMain">{serviceData.title}</span>
           </nav>
         </div>
       </div>
@@ -91,7 +93,7 @@ export default function ServiceDetailPage() {
             {/* Title & Badges */}
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded">
+                <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
                   [ {serviceData.badge} ]
                 </span>
                 <div className="flex items-center gap-1">
@@ -146,10 +148,10 @@ export default function ServiceDetailPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN (40% width) - Service Booking Panel */}
+          {/* RIGHT COLUMN (40% width) - Interactive Booking/Purchase Panel */}
           <div className="lg:col-span-2">
-            <div className="sticky top-4">
-              <div className="bg-brand-sidebar rounded-lg border border-brand-border p-6">
+            <div>
+              <div className="bg-brand-sidebar border-2 border-slate-900 p-6 shadow-sm">
                 <h2 className="text-xl font-bold text-brand-textMain mb-1">SERVICE BOOKING</h2>
                 <p className="text-brand-textMuted mb-6">Base Price: Rp {serviceData.basePrice.toLocaleString()} / switch</p>
                 
@@ -230,9 +232,11 @@ export default function ServiceDetailPage() {
                     <span className="text-lg font-bold text-brand-textMain">Estimated Total:</span>
                     <span className="text-xl font-bold text-brand-navy">Rp {calculateTotal().toLocaleString()}</span>
                   </div>
-                  <Button variant="primary" isLoading={false} className="w-full text-lg py-3">
-                    [ Book Service (Escrow) ]
-                  </Button>
+                  <a href="/cart" className="block w-full">
+                    <Button variant="primary" isLoading={false} className="w-full text-sm py-3">
+                      Book Service (Escrow Checkout) →
+                    </Button>
+                  </a>
                 </div>
               </div>
             </div>

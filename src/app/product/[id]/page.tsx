@@ -49,10 +49,12 @@ export default function ProductDetailPage() {
       {/* Breadcrumbs */}
       <div className="bg-brand-sidebar border-b border-brand-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="text-sm text-brand-textMuted">
-            <a href="/" className="hover:text-brand-navy">Home</a> &gt; 
-            <a href="#" className="hover:text-brand-navy"> {productData.provider}</a> &gt; 
-            <span className="text-brand-textMain"> {productData.title}</span>
+          <nav className="text-sm text-brand-textMuted flex items-center gap-2">
+            <a href="/" className="hover:text-brand-navy">Home</a>
+            <span>&gt;</span>
+            <a href="#" className="hover:text-brand-navy">{productData.provider}</a>
+            <span>&gt;</span>
+            <span className="text-brand-textMain">{productData.title}</span>
           </nav>
         </div>
       </div>
@@ -147,9 +149,9 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN (40% width) - Product Purchase Panel */}
+          {/* RIGHT COLUMN (40% width) - Interactive Purchase Panel */}
           <div className="lg:col-span-2">
-            <div className="sticky top-4">
+            <div>
               <div className="bg-brand-sidebar rounded-lg border border-brand-border p-6">
                 <h2 className="text-xl font-bold text-brand-textMain mb-1">READY STOCK ITEM</h2>
                 <p className="text-2xl font-bold text-brand-navy mb-6">Rp {currentVariation.price.toLocaleString()}</p>
@@ -227,12 +229,16 @@ export default function ProductDetailPage() {
                     <span className="text-xl font-bold text-brand-navy">Rp {subtotal.toLocaleString()}</span>
                   </div>
                   <div className="space-y-2">
-                    <Button variant="primary" isLoading={false} className="w-full text-lg py-3">
-                      [ Add to Cart ]
-                    </Button>
-                    <Button variant="secondary" isLoading={false} className="w-full text-lg py-3">
-                      [ Buy Now ]
-                    </Button>
+                    <a href="/cart" className="block w-full">
+                      <Button variant="primary" isLoading={false} className="w-full text-xs py-3">
+                        Add to Cart →
+                      </Button>
+                    </a>
+                    <a href="/cart" className="block w-full">
+                      <Button variant="secondary" isLoading={false} className="w-full text-xs py-3">
+                        Buy Now (Instant Checkout) →
+                      </Button>
+                    </a>
                   </div>
                 </div>
               </div>

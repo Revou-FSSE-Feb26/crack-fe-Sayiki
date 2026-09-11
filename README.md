@@ -26,27 +26,56 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+### Seed Sample Data (Development)
+
+```bash
+# Option 1: Using npm script
+npm run seed
+
+# Option 2: Using API endpoint
+# POST http://localhost:3000/api/seed
+```
+
+**Test Accounts:**
+- Admin: `admin@switchlab.com` / `Admin123!`
+- Modder 1: `john.modder@switchlab.com` / `Modder123!`
+- Modder 2: `jane.modder@switchlab.com` / `Modder123!`
+- User: `user@example.com` / `User123!`
+
 ## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── page.tsx              # Homepage with hero & cards
-│   ├── modders/page.tsx      # Modder discovery directory  
-│   ├── search/page.tsx       # Search results with filters
+│   ├── api/                  # REST API endpoints
+│   │   ├── auth/            # Authentication (login, register, me)
+│   │   ├── products/        # Product CRUD operations
+│   │   ├── services/        # Service CRUD operations
+│   │   ├── modders/         # Modder profile management
+│   │   └── seed/            # Database seeding (dev only)
+│   ├── page.tsx             # Homepage with hero & cards
+│   ├── modders/page.tsx     # Modder discovery directory  
+│   ├── search/page.tsx      # Search results with filters
 │   ├── service/[id]/page.tsx # Service booking page
 │   ├── product/[id]/page.tsx # Product purchase page
-│   ├── login/page.tsx        # Authentication
-│   └── layout.tsx            # Navigation & footer
+│   ├── login/page.tsx       # Authentication
+│   ├── register/page.tsx    # User registration
+│   └── layout.tsx           # Navigation & footer
 ├── components/
-│   ├── Button.tsx            # Reusable button component
-│   └── Input.tsx             # Form input component
+│   ├── Button.tsx           # Reusable button component
+│   └── Input.tsx            # Form input component
+├── lib/
+│   ├── db.ts                # Database layer (in-memory mock)
+│   ├── auth.ts              # JWT authentication utilities
+│   ├── validations.ts       # Zod validation schemas
+│   ├── errors.ts            # Error handling utilities
+│   └── seed.ts              # Database seeding script
 public/images/
-├── hero.jpg                  # Hero background
-├── lubing-switches.webp      # Service images
-├── stabs.webp               # Stabilizer work
-├── switches.jpg             # Product images
-└── prebuilt-kb.webp         # Custom builds
+├── hero.jpg                 # Hero background
+├── lubing-switches.webp     # Service images
+├── stabs.webp              # Stabilizer work
+├── switches.jpg            # Product images
+└── prebuilt-kb.webp        # Custom builds
 ```
 
 ## 🛠️ Tech Stack
@@ -55,6 +84,10 @@ public/images/
 - **Styling**: Tailwind CSS 4 with custom brand colors
 - **Language**: TypeScript
 - **Icons**: Custom SVG icons in /public
+- **Backend**: Next.js API Routes
+- **Authentication**: JWT with bcrypt password hashing
+- **Validation**: Zod schemas
+- **Database**: In-memory storage (ready for Prisma/PostgreSQL migration)
 
 ## 🎨 Design Philosophy
 
@@ -94,5 +127,29 @@ public/images/
 - Collapsible sidebar filters
 - Touch-friendly card interactions
 - Optimized image loading
+
+## 🔐 API & Backend
+
+Complete REST API with JWT authentication. See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed endpoint specifications.
+
+### Key Features:
+- **Authentication**: Register, login, JWT token management
+- **Authorization**: Role-based access control (User, Modder, Admin)
+- **Validation**: Request validation with Zod schemas
+- **Error Handling**: Comprehensive error responses
+- **Security**: Password hashing with bcrypt, JWT tokens
+
+### API Endpoints:
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+- `GET /api/products` - List all products
+- `POST /api/products` - Create product (Modder/Admin)
+- `GET /api/services` - List all services
+- `POST /api/services` - Create service (Modder/Admin)
+- `GET /api/modders` - List all modders
+- `POST /api/modders` - Create modder profile
+
+See full documentation in [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 
 Built for the mechanical keyboard community with attention to the details that matter most to enthusiasts.

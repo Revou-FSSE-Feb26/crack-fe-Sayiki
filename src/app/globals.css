@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -7,13 +8,110 @@
   --color-brand-navy: #1A3673;       /* Aksen Utama (Biru pekat untuk tombol & header) */
   --color-brand-terracotta: #B85C56; /* Aksen Sekunder (Merah pudar untuk link/danger) */
   --color-brand-mustard: #DE9337;    /* Aksen Tersier (Kuning hangat untuk status pending) */
-  --color-brand-border: #E2E8F0;     /* Garis pembatas yang tipis & clean */
+  --color-brand-border: #0F172A;     /* Garis pembatas yang tegas */
   --color-brand-textMain: #0F172A;   /* Teks utama (slate pekat) */
   --color-brand-textMuted: #64748B;  /* Teks sekunder/deskripsi */
+
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-body {
-  background-color: var(--color-brand-lightBg);
-  color: var(--color-brand-textMain);
-  font-family: sans-serif;
+/* ============================================================
+   1. STRICT SHARP BOX SHAPE (0px border-radius everywhere)
+   Matches the sharp, unrounded rectangular shape from reference
+   ============================================================ */
+*,
+*::before,
+*::after {
+  border-radius: 0px !important;
+}
+
+/* ============================================================
+   2. FONT SYSTEM (Space Grotesk + JetBrains Mono)
+   Matches the bold display + technical monospace font pairing
+   ============================================================ */
+body,
+h1, h2, h3, h4, h5, h6,
+p {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Technical elements use JetBrains Mono (like screenshot) */
+nav a,
+button,
+input,
+select,
+textarea,
+label,
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* ============================================================
+   3. BRAND NAVY (#1A3673) ENFORCEMENT
+   Guarantees true Navy (#1A3673) and never black (#000000)
+   ============================================================ */
+.bg-brand-navy {
+  background-color: #1A3673 !important;
+}
+
+.text-brand-navy {
+  color: #1A3673 !important;
+}
+
+.border-brand-navy {
+  border-color: #1A3673 !important;
+}
+
+.hover\:bg-brand-navy:hover {
+  background-color: #1A3673 !important;
+}
+
+.hover\:text-brand-navy:hover {
+  color: #1A3673 !important;
+}
+
+.hover\:border-brand-navy:hover {
+  border-color: #1A3673 !important;
+}
+
+/* Hero background gradient support */
+.from-brand-navy\/90 {
+  --tw-gradient-from: rgba(26, 54, 115, 0.92) !important;
+}
+
+.to-brand-navy\/70 {
+  --tw-gradient-to: rgba(26, 54, 115, 0.75) !important;
+}
+
+/* ============================================================
+   4. SHARP BOXES & CARDS STYLING
+   ============================================================ */
+/* Default border styling for sharp boxes */
+.sharp-card {
+  border: 2px solid #0F172A;
+  border-radius: 0px !important;
+  background-color: #FFFFFF;
+}
+
+.sharp-card:hover {
+  border-color: #1A3673;
+}
+
+/* Card containers with crisp sharp borders */
+.border-brand-border {
+  border-color: #0F172A !important;
+  border-width: 1.5px !important;
+}
+
+/* Badges with crisp sharp box styling */
+span[class*="bg-purple-50"],
+span[class*="bg-green-50"],
+span[class*="bg-purple-100"],
+span[class*="bg-green-100"] {
+  border-radius: 0px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
 }

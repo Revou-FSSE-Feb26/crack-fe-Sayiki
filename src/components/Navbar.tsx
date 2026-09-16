@@ -16,6 +16,7 @@ export function Navbar() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -28,14 +29,39 @@ export function Navbar() {
       }
     }
 
-    // Listen for storage changes across tabs or login/logout events
+    const updateCart = () => {
+      try {
+        const storedCart = localStorage.getItem("switchlab_cart");
+        if (storedCart) {
+          const items = JSON.parse(storedCart);
+          if (Array.isArray(items)) {
+            const count = items.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0);
+            setCartCount(count);
+            return;
+          }
+        }
+        setCartCount(0);
+      } catch (e) {
+        setCartCount(0);
+      }
+    };
+
+    updateCart();
+
+    // Listen for storage changes across tabs or login/logout/cart events
     const handleAuthChange = () => {
       const updated = localStorage.getItem("user");
       setUser(updated ? JSON.parse(updated) : null);
     };
 
     window.addEventListener("storage", handleAuthChange);
-    return () => window.removeEventListener("storage", handleAuthChange);
+    window.addEventListener("storage", updateCart);
+    window.addEventListener("cart_updated", updateCart);
+    return () => {
+      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("storage", updateCart);
+      window.removeEventListener("cart_updated", updateCart);
+    };
   }, [pathname]);
 
   const handleLogout = () => {
@@ -150,15 +176,17 @@ export function Navbar() {
                 }`}
               >
                 <span>🛒 Cart</span>
-                <span
-                  className={`px-1.5 py-0.2 text-[10px] ${
-                    isRouteActive("/cart")
-                      ? "bg-white text-brand-navy font-black"
-                      : "bg-brand-navy text-white"
-                  }`}
-                >
-                  2
-                </span>
+                {cartCount > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 text-[10px] font-mono font-bold ${
+                      isRouteActive("/cart")
+                        ? "bg-white text-brand-navy"
+                        : "bg-brand-navy text-white"
+                    }`}
+                  >
+                    {cartCount}
+                  </span>
+                )}
               </Link>
             )}
 

@@ -28,6 +28,11 @@ export default function RegisterPage(){
         role: selectedRole,
         locationCity: city,
       });
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('switchlab_cart');
+        localStorage.removeItem('switchlab_orders');
+        window.dispatchEvent(new Event('cart_updated'));
+      }
       router.push('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');

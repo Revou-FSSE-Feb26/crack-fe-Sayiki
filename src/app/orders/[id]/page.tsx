@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -16,10 +16,24 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params?.id || "SWL-8942";
 
+  const [order, setOrder] = useState<any>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(2); // On Workbench
   const [inboundTracking, setInboundTracking] = useState("JP89421098842");
   const [outboundTracking, setOutboundTracking] = useState("");
   const [escrowReleased, setEscrowReleased] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("switchlab_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const found = parsed.find((o: any) => o.id === orderId);
+          if (found) setOrder(found);
+        }
+      }
+    } catch (e) {}
+  }, [orderId]);
 
   const handleReleaseEscrow = () => {
     setCurrentStepIndex(4);
@@ -47,7 +61,7 @@ export default function OrderDetailPage() {
 
             <div className="bg-green-50 border-2 border-green-600 px-4 py-2 font-mono text-xs">
               <span className="text-green-800 font-bold block uppercase">🛡️ Escrow Active</span>
-              <span className="text-green-700">Rp 425,000 Locked in Vault</span>
+              <span className="text-green-700">Rp {order?.totalPrice ? order.totalPrice.toLocaleString() : "425,000"} Locked in Vault</span>
             </div>
           </div>
         </div>
@@ -101,18 +115,14 @@ export default function OrderDetailPage() {
                   Modder Workbench Notes
                 </h3>
                 <span className="text-xs font-mono text-brand-navy font-bold">
-                  Modder: @DexterKeyboards
+                  Modder: {order?.modder || "@DexterKeyboards"}
                 </span>
               </div>
 
               <div className="bg-brand-lightBg border-2 border-slate-800 p-4 mb-4 font-mono text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-brand-textMuted">Keyboard Model:</span>
-                  <span className="font-bold text-brand-textMain">Tofu65 Acrylic Edition</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-brand-textMuted">Config:</span>
-                  <span className="font-bold text-brand-textMain">90x Gateron Linear Switches + Deskeys Films</span>
+                  <span className="text-brand-textMuted">Service / Config:</span>
+                  <span className="font-bold text-brand-textMain">{order?.service || "Linear Switch Lubing & Filming"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-brand-textMuted">Current Workbench Stage:</span>
@@ -211,7 +221,7 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="border-t-2 border-slate-900 pt-3 flex justify-between text-base">
                   <span className="font-bold uppercase">Held in Escrow:</span>
-                  <span className="font-extrabold text-brand-navy">Rp 425,000</span>
+                  <span className="font-extrabold text-brand-navy">Rp {order?.totalPrice ? order.totalPrice.toLocaleString() : "425,000"}</span>
                 </div>
               </div>
 

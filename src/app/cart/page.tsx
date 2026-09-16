@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 
@@ -14,31 +14,9 @@ interface CartItem {
   image: string;
 }
 
-const initialItems: CartItem[] = [
-  {
-    id: 4,
-    type: "product",
-    title: "70x Pre-Lubed Gateron V1 Switches",
-    variation: "70x Pack (Linear)",
-    provider: "@DexterKeyboards",
-    price: 450000,
-    quantity: 1,
-    image: "/images/switches.jpg",
-  },
-  {
-    id: 1,
-    type: "service",
-    title: "Linear Switch Lubing & Filming",
-    variation: "90 Switches + Films Included",
-    provider: "@DexterKeyboards",
-    price: 405000,
-    quantity: 1,
-    image: "/images/lubing-swtiches.webp",
-  },
-];
-
 export default function CartPage() {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [mounted, setMounted] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<"COURIER" | "WALK_IN">("COURIER");
   const [shippingTier, setShippingTier] = useState<"REGULAR" | "INSTANT">("REGULAR");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -53,21 +31,44 @@ export default function CartPage() {
   const [receiptUploaded, setReceiptUploaded] = useState(false);
   const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
 
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const stored = localStorage.getItem("switchlab_cart");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setItems(parsed);
+        }
+      }
+    } catch (e) {
+      setItems([]);
+    }
+  }, []);
+
+  const syncCart = (newItems: CartItem[]) => {
+    setItems(newItems);
+    localStorage.setItem("switchlab_cart", JSON.stringify(newItems));
+    window.dispatchEvent(new Event("cart_updated"));
+  };
+
   const updateQuantity = (id: number, delta: number) => {
-    setItems((prev) =>
-      prev
-        .map((item) => {
-          if (item.id === id) {
-            const newQty = Math.max(1, item.quantity + delta);
-            return { ...item, quantity: newQty };
-          }
-          return item;
-        })
-    );
+    const updated = items.map((item) => {
+      if (item.id === id) {
+        return { ...item, quantity: Math.max(1, item.quantity + delta) };
+      }
+      return item;
+    });
+    syncCart(updated);
   };
 
   const removeItem = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    const updated = items.filter((item) => item.id !== id);
+    syncCart(updated);
+  };
+
+  const clearAll = () => {
+    syncCart([]);
   };
 
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -95,11 +96,35 @@ export default function CartPage() {
     setReceiptFileName("bca_mtransfer_receipt_678.jpg");
   };
 
+  const [createdOrderId, setCreatedOrderId] = useState<string>("SWL-8942");
+
   const handleSubmitProof = () => {
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
       setShowPaywallModal(false);
+
+      const generatedId = `SWL-${Math.floor(1000 + Math.random() * 9000)}`;
+      setCreatedOrderId(generatedId);
+
+      // Save order to switchlab_orders for this customer
+      try {
+        const existingOrders = JSON.parse(localStorage.getItem("switchlab_orders") || "[]");
+        const newOrder = {
+          id: generatedId,
+          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          modder: items[0]?.provider || "@DexterKeyboards",
+          service: items.map((i) => i.title).join(" + "),
+          totalPrice: exactTransferTotal,
+          status: "PAID_WAITING_MODDER",
+          statusLabel: "FUNDS IN ESCROW • AWAITING MODDER ACCEPTANCE",
+          badgeClass: "bg-blue-50 text-blue-700 border-blue-600",
+        };
+        localStorage.setItem("switchlab_orders", JSON.stringify([newOrder, ...existingOrders]));
+      } catch (e) {}
+
+      // Empty cart
+      syncCart([]);
       setOrderComplete(true);
     }, 1000);
   };
@@ -116,7 +141,7 @@ export default function CartPage() {
           </span>
           <h1 className="text-2xl font-black text-brand-textMain mb-2">Awaiting Admin Verification</h1>
           <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6">
-            Order Reference #SWL-8942 • Verification Code #{uniqueCode}
+            Order Reference #{createdOrderId} • Verification Code #{uniqueCode}
           </p>
 
           <div className="bg-brand-lightBg border-2 border-slate-900 p-4 text-left font-mono text-xs space-y-2.5 mb-6">
@@ -147,7 +172,7 @@ export default function CartPage() {
           </div>
 
           <div className="space-y-3">
-            <a href="/orders/SWL-8942" className="block w-full">
+            <a href={`/orders/${createdOrderId}`} className="block w-full">
               <Button variant="primary" isLoading={false} className="w-full">
                 Track Escrow Progress →
               </Button>
@@ -208,7 +233,7 @@ export default function CartPage() {
                   Cart Items ({items.length})
                 </h2>
                 <button
-                  onClick={() => setItems([])}
+                  onClick={clearAll}
                   className="font-mono text-xs text-brand-terracotta hover:underline uppercase font-bold"
                 >
                   Clear All

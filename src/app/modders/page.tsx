@@ -24,8 +24,7 @@ const moddersData = [
       title: 'Neo80 Linear Build',
       duration: '0:45'
     },
-    isVerified: true,
-    isPro: true
+    isVerified: true
   },
   {
     id: 2,
@@ -47,8 +46,7 @@ const moddersData = [
       title: 'Wooting HE Build',
       duration: '1:12'
     },
-    isVerified: true,
-    isPro: false
+    isVerified: true
   },
   {
     id: 3,
@@ -70,8 +68,7 @@ const moddersData = [
       title: 'Restored Vintage AT101',
       duration: '0:38'
     },
-    isVerified: true,
-    isPro: true
+    isVerified: true
   },
   {
     id: 4,
@@ -93,8 +90,7 @@ const moddersData = [
       title: 'Tactile Perfection',
       duration: '0:52'
     },
-    isVerified: true,
-    isPro: false
+    isVerified: true
   },
   {
     id: 5,
@@ -116,8 +112,7 @@ const moddersData = [
       title: 'Gasket Mount Perfection',
       duration: '1:05'
     },
-    isVerified: false,
-    isPro: false
+    isVerified: false
   },
   {
     id: 6,
@@ -139,8 +134,7 @@ const moddersData = [
       title: 'Holy Panda Perfection',
       duration: '0:41'
     },
-    isVerified: true,
-    isPro: false
+    isVerified: true
   }
 ];
 
@@ -171,9 +165,9 @@ export default function ModdersDirectoryPage() {
 
   const filteredModders = moddersData.filter(modder => {
     const matchesSearch = modder.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         modder.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         modder.specialties.some(spec => spec.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+      modder.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      modder.specialties.some(spec => spec.toLowerCase().includes(searchQuery.toLowerCase()));
+
     const matchesLocation = filters.location.length === 0 || filters.location.includes(modder.location.city);
     const matchesSpecialties = filters.specialties.length === 0 || filters.specialties.some(spec => modder.specialties.includes(spec));
     const matchesStatus = filters.status.length === 0 || filters.status.includes(getStatusLabel(modder.status));
@@ -229,22 +223,22 @@ export default function ModdersDirectoryPage() {
         {/* Search Bar Container */}
         <div className="flex items-center gap-3 mb-8">
           <div className="relative flex flex-1 max-w-2xl">
-            <input 
+            <input
               type="text"
               placeholder="Search modders by name, city, or specialty..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-5 py-3.5 pr-28 text-sm border-2 border-slate-900 focus:border-brand-navy focus:outline-none bg-white text-brand-textMain placeholder:text-brand-textMuted font-mono"
             />
-            <button 
+            <button
               className="absolute right-1.5 top-1/2 transform -translate-y-1/2 bg-brand-navy text-white px-5 py-2 hover:bg-[#132856] transition-colors font-mono font-bold text-xs uppercase tracking-wider border-2 border-brand-navy"
             >
               Search
             </button>
           </div>
-          <Button 
-            variant="secondary" 
-            isLoading={false} 
+          <Button
+            variant="secondary"
+            isLoading={false}
             className="lg:hidden w-auto px-4 py-3.5"
             onClick={() => setShowMobileFilters(!showMobileFilters)}
           >
@@ -257,47 +251,47 @@ export default function ModdersDirectoryPage() {
             <div className="bg-brand-sidebar border-2 border-slate-900 p-6 max-h-[80vh] overflow-y-auto shadow-sm">
               <div className="flex items-center justify-between mb-4 lg:mb-6 pb-2 border-b-2 border-slate-900">
                 <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain">Sidebar Filters</h2>
-                <Button 
-                  variant="secondary" 
-                  isLoading={false} 
+                <Button
+                  variant="secondary"
+                  isLoading={false}
                   className="lg:hidden text-sm px-3 py-1"
                   onClick={() => setShowMobileFilters(false)}
                 >
                   ✕
                 </Button>
               </div>
-              
-              <FilterSection 
-                title="Location" 
-                options={locations} 
+
+              <FilterSection
+                title="Location"
+                options={locations}
                 selected={filters.location}
                 onChange={(value) => handleFilterChange('location', value)}
               />
-              
-              <FilterSection 
-                title="Specialties" 
-                options={specialties} 
+
+              <FilterSection
+                title="Specialties"
+                options={specialties}
                 selected={filters.specialties}
                 onChange={(value) => handleFilterChange('specialties', value)}
               />
-              
-              <FilterSection 
-                title="Status" 
-                options={statuses} 
+
+              <FilterSection
+                title="Status"
+                options={statuses}
                 selected={filters.status}
                 onChange={(value) => handleFilterChange('status', value)}
               />
-              
-              <FilterSection 
-                title="Lubing Style" 
-                options={lubingStyles} 
+
+              <FilterSection
+                title="Lubing Style"
+                options={lubingStyles}
                 selected={filters.lubingStyle}
                 onChange={(value) => handleFilterChange('lubingStyle', value)}
               />
-              
-              <FilterSection 
-                title="Equipment" 
-                options={equipmentOptions} 
+
+              <FilterSection
+                title="Equipment"
+                options={equipmentOptions}
                 selected={filters.equipment}
                 onChange={(value) => handleFilterChange('equipment', value)}
               />
@@ -311,7 +305,7 @@ export default function ModdersDirectoryPage() {
                 MODDER RESULTS (Showing {filteredModders.length} modders)
               </h2>
             </div>
-            
+
             {/* Modder Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredModders.map((modder) => (
@@ -322,9 +316,9 @@ export default function ModdersDirectoryPage() {
             {filteredModders.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-brand-textMuted text-lg">No modders found matching your criteria.</p>
-                <Button 
-                  variant="secondary" 
-                  isLoading={false} 
+                <Button
+                  variant="secondary"
+                  isLoading={false}
                   className="mt-4"
                   onClick={() => {
                     setFilters({
@@ -372,8 +366,8 @@ function FilterSection({ title, options, selected, onChange }: {
       </h3>
       <div className="space-y-1.5">
         {options.map((option) => (
-          <label 
-            key={option} 
+          <label
+            key={option}
             className="flex items-center gap-2.5 cursor-pointer text-xs font-mono text-brand-textMain hover:text-brand-navy py-0.5 group select-none"
           >
             <input
@@ -426,8 +420,8 @@ function ModderCard({ modder }: { modder: any }) {
         {/* Profile Header */}
         <div className="flex items-center gap-3.5 mb-4">
           <div className="w-14 h-14 shrink-0 border-2 border-slate-900 bg-slate-200 relative overflow-hidden flex items-center justify-center font-mono font-bold text-slate-600 text-sm">
-            <img 
-              src={modder.avatar} 
+            <img
+              src={modder.avatar}
               alt={modder.displayName}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -444,14 +438,9 @@ function ModderCard({ modder }: { modder: any }) {
               <h3 className="font-bold text-base text-brand-textMain group-hover:text-brand-navy transition-colors truncate">
                 {modder.username}
               </h3>
-              {modder.isPro && (
-                <span className="px-1.5 py-0.5 bg-brand-navy text-white text-[10px] font-mono font-bold uppercase tracking-wider">
-                  PRO
-                </span>
-              )}
               {modder.isVerified && (
-                <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-300 text-brand-navy text-[10px] font-mono font-bold">
-                  ✓ VERIFIED
+                <span className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-400 text-emerald-800 text-[10px] font-mono font-bold">
+                  ✓ KTP VERIFIED
                 </span>
               )}
             </div>
@@ -471,8 +460,8 @@ function ModderCard({ modder }: { modder: any }) {
         {/* Specialty Chips */}
         <div className="flex flex-wrap gap-1.5 mb-4 min-h-[52px] items-start">
           {modder.specialties.map((specialty: string, index: number) => (
-            <span 
-              key={index} 
+            <span
+              key={index}
               className="px-2 py-0.5 bg-white border border-slate-300 text-slate-700 text-[11px] font-mono font-medium"
             >
               {specialty}
@@ -491,7 +480,7 @@ function ModderCard({ modder }: { modder: any }) {
             </span>
           </div>
           <div className="flex items-center gap-2.5 bg-white p-2 border border-slate-200">
-            <button 
+            <button
               type="button"
               onClick={() => setIsPlaying(!isPlaying)}
               title={isPlaying ? "Pause Sound Test" : "Play Sound Test"}
@@ -500,7 +489,7 @@ function ModderCard({ modder }: { modder: any }) {
               {isPlaying ? "❚❚" : "▶"}
             </button>
             <div className="flex-1 h-2 bg-slate-200 border border-slate-300 relative overflow-hidden">
-              <div 
+              <div
                 className={`h-full bg-brand-navy transition-all duration-300 ${isPlaying ? 'w-4/5 animate-pulse' : 'w-2/5'}`}
               ></div>
             </div>

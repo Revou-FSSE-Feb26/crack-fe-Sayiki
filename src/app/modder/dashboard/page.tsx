@@ -145,8 +145,8 @@ export default function ModderDashboardPage() {
                 <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
                   [ CRAFTSMAN WORKBENCH PORTAL ]
                 </span>
-                <span className="px-2 py-0.5 bg-brand-navy text-white text-xs font-mono font-bold">
-                  PRO ARTISAN
+                <span className="px-2 py-0.5 bg-emerald-100 border border-emerald-500 text-emerald-800 text-xs font-mono font-bold">
+                  ✓ KTP VERIFIED CRAFTSMAN
                 </span>
               </div>
               <h1 className="text-3xl md:text-4xl font-black text-brand-textMain tracking-tight">

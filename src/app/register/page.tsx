@@ -1,10 +1,40 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
+import { api } from "@/lib/api";
 
 export default function RegisterPage(){
-  const [selectedRole, setSelectedRole] = useState("CUSTOMER");
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [selectedRole, setSelectedRole] = useState<"CUSTOMER" | "MODDER">("CUSTOMER");
+  const [city, setCity] = useState("Jakarta");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      await api.auth.register({
+        name,
+        email,
+        password,
+        role: selectedRole,
+        locationCity: city,
+      });
+      router.push('/');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
@@ -17,11 +47,46 @@ export default function RegisterPage(){
           <h1 className="text-2xl font-bold text-brand-textMain tracking-tight">Create an Account</h1>
           <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted mt-1">Join the professional custom keyboard studio hub</p>
         </div>
+
+        {error && (
+          <div className="p-3 bg-red-50 border-2 border-red-500 text-red-700 text-xs font-mono mb-4">
+            ⚠ {error}
+          </div>
+        )}
         
-        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <Input label="Full Name" type="text" placeholder="Arzaq Ajradika" required />
-          <Input label="Email Address" type="email" placeholder="arzaq@example.com" required />
-          <Input label="Password" type="password" placeholder="Min. 8 characters" required />
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <Input 
+            label="Full Name" 
+            type="text" 
+            placeholder="Arzaq Ajradika" 
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required 
+          />
+          <Input 
+            label="Email Address" 
+            type="email" 
+            placeholder="arzaq@example.com" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required 
+          />
+          <Input 
+            label="Password" 
+            type="password" 
+            placeholder="Min. 8 characters" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required 
+          />
+          <Input 
+            label="City / Region" 
+            type="text" 
+            placeholder="Jakarta, Bandung, Depok..." 
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            required 
+          />
           
           {/* Role Selection Segmented Control */}
           <div className="flex flex-col gap-1.5 w-full">
@@ -37,7 +102,7 @@ export default function RegisterPage(){
                   name="role" 
                   value="CUSTOMER" 
                   checked={selectedRole === "CUSTOMER"}
-                  onChange={(e) => setSelectedRole(e.target.value)}
+                  onChange={(e) => setSelectedRole(e.target.value as "CUSTOMER")}
                   className="accent-brand-navy" 
                 />
                 Customer
@@ -52,7 +117,7 @@ export default function RegisterPage(){
                   name="role" 
                   value="MODDER" 
                   checked={selectedRole === "MODDER"}
-                  onChange={(e) => setSelectedRole(e.target.value)}
+                  onChange={(e) => setSelectedRole(e.target.value as "MODDER")}
                   className="accent-brand-navy" 
                 />
                 Modder
@@ -60,8 +125,8 @@ export default function RegisterPage(){
             </div>
           </div>
           
-          <Button type="submit" variant="primary" className="mt-4" isLoading={false}>
-            Register Account →
+          <Button type="submit" variant="primary" className="mt-4" isLoading={loading}>
+            {loading ? "Registering..." : "Register Account →"}
           </Button>
         </form>
         

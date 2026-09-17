@@ -38,6 +38,23 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
   return response.json();
 }
 
+export function syncAuthCookies() {
+  if (typeof window === 'undefined') return;
+  try {
+    const token = localStorage.getItem('token');
+    const userRaw = localStorage.getItem('user');
+    if (token) {
+      document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+    }
+    if (userRaw) {
+      const user = JSON.parse(userRaw);
+      if (user?.role) {
+        document.cookie = `user_role=${user.role}; path=/; max-age=604800; SameSite=Lax`;
+      }
+    }
+  } catch (e) {}
+}
+
 export const api = {
   auth: {
     login: async (credentials: { email: string; password: string }) => {
@@ -47,8 +64,14 @@ export const api = {
       });
       const token = data.accessToken || data.access_token;
       if (typeof window !== 'undefined') {
-        if (token) localStorage.setItem('token', token);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        if (token) {
+          localStorage.setItem('token', token);
+          document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+        }
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          document.cookie = `user_role=${data.user.role || 'CUSTOMER'}; path=/; max-age=604800; SameSite=Lax`;
+        }
         window.dispatchEvent(new Event('storage'));
       }
       return data;
@@ -69,8 +92,14 @@ export const api = {
       });
       const token = data.accessToken || data.access_token;
       if (typeof window !== 'undefined') {
-        if (token) localStorage.setItem('token', token);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        if (token) {
+          localStorage.setItem('token', token);
+          document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+        }
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          document.cookie = `user_role=${data.user.role || 'CUSTOMER'}; path=/; max-age=604800; SameSite=Lax`;
+        }
         window.dispatchEvent(new Event('storage'));
       }
       return data;
@@ -80,6 +109,8 @@ export const api = {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+        document.cookie = 'user_role=; path=/; max-age=0; SameSite=Lax';
         window.dispatchEvent(new Event('storage'));
       }
     },

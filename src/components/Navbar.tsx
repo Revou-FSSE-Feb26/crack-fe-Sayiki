@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, syncAuthCookies } from "@/lib/api";
 import {
   getUserNotifications,
   markNotificationAsRead,
@@ -51,6 +51,7 @@ export function Navbar() {
       }
     }
 
+    syncAuthCookies();
     loadNotifs(currentUser);
 
     const updateCart = () => {
@@ -74,6 +75,7 @@ export function Navbar() {
 
     // Listen for storage changes across tabs or login/logout/cart events
     const handleAuthChange = () => {
+      syncAuthCookies();
       const updated = localStorage.getItem("user");
       const parsed = updated ? JSON.parse(updated) : null;
       setUser(parsed);

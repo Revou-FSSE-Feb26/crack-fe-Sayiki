@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
@@ -32,6 +33,7 @@ const workbenchStages = [
 ];
 
 export default function ModderDashboardPage() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<ModderJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<ModderJob | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,9 +69,15 @@ export default function ModderDashboardPage() {
       }
     } catch (e) {}
 
-    // Role check: If guest or not a modder/admin, don't attempt to load modder jobs
-    if (!userObj || (userObj.role !== "MODDER" && userObj.role !== "ADMIN")) {
+    // Strict Role check: If guest or customer, redirect immediately
+    if (!userObj) {
       setLoading(false);
+      router.replace("/login?redirect=/modder/dashboard");
+      return;
+    }
+    if (userObj.role !== "MODDER" && userObj.role !== "ADMIN") {
+      setLoading(false);
+      router.replace("/orders?error=unauthorized_modder_access");
       return;
     }
 
@@ -420,6 +428,40 @@ export default function ModderDashboardPage() {
   const completedJobs = jobs.filter((j) => j.status === "SUCCESS" || j.status === "UNDER_DISPUTE");
   const displayedJobs = activeTab === "ACTIVE" ? activeJobs : completedJobs;
 
+  // Full-screen guard: Customers and Guests CANNOT see or access the modder workbench
+  if (mounted && (!currentUser || (currentUser.role !== "MODDER" && currentUser.role !== "ADMIN"))) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl">
+          <div className="w-16 h-16 bg-red-50 border-2 border-red-600 text-red-600 flex items-center justify-center mx-auto mb-4 text-3xl font-mono">
+            ⛔
+          </div>
+          <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-red-600 bg-red-50 text-red-700 mb-2">
+            [ 403 FORBIDDEN • ACCESS DENIED ]
+          </span>
+          <h1 className="text-2xl font-black text-brand-textMain mb-2">
+            Modder Workbench Restricted
+          </h1>
+          <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6">
+            You are logged in as a <strong>{currentUser?.role || "GUEST"}</strong>. The Workbench is strictly reserved for verified modders and studio operators.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link href="/orders">
+              <Button variant="primary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
+                Go to My Customer Orders →
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="secondary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
+                Switch to Modder Account
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-brand-lightBg">
       {/* Toast Notification */}
@@ -508,23 +550,7 @@ export default function ModderDashboardPage() {
           </button>
         </div>
 
-        {mounted && (!currentUser || (currentUser.role !== "MODDER" && currentUser.role !== "ADMIN")) ? (
-          <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm my-4">
-            <div className="text-4xl mb-3">🛠️</div>
-            <h2 className="text-xl font-black text-brand-textMain mb-2">Modder Studio Access Restricted</h2>
-            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
-              This workbench is reserved for registered SwitchLab modders. You are currently signed in as {currentUser?.role || "a Guest"}.
-            </p>
-            <div className="flex justify-center gap-3">
-              <Link href="/orders">
-                <Button variant="primary" isLoading={false} className="text-xs">View My Orders →</Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="secondary" isLoading={false} className="text-xs">Switch to Modder Account</Button>
-              </Link>
-            </div>
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center font-mono text-xs text-brand-textMuted uppercase">
             <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
             <h2 className="text-base font-bold text-brand-textMain">Loading Workbench Queue...</h2>

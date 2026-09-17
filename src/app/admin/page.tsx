@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
@@ -22,6 +23,7 @@ interface PendingPayment {
 }
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"VERIFY_PAYMENTS" | "DISBURSEMENTS" | "DISPUTES">("VERIFY_PAYMENTS");
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [completedOrders, setCompletedOrders] = useState<any[]>([]);
@@ -48,9 +50,15 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {}
 
-    // Only allow ADMIN role into Escrow Vault
-    if (!userObj || userObj.role !== "ADMIN") {
+    // Strict Role check: Only allow ADMIN role into Escrow Vault
+    if (!userObj) {
       setLoading(false);
+      router.replace("/login?redirect=/admin");
+      return;
+    }
+    if (userObj.role !== "ADMIN") {
+      setLoading(false);
+      router.replace("/orders?error=unauthorized_admin_access");
       return;
     }
 
@@ -209,6 +217,40 @@ export default function AdminDashboardPage() {
 
   const pendingCount = payments.filter((p) => p.status === "PENDING").length;
 
+  // Full-screen guard: Customers and Guests CANNOT access the Escrow Vault
+  if (mounted && (!currentUser || currentUser.role !== "ADMIN")) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl">
+          <div className="w-16 h-16 bg-blue-100 border-2 border-brand-navy text-brand-navy flex items-center justify-center mx-auto mb-4 text-3xl font-mono">
+            🛡️
+          </div>
+          <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-red-600 bg-red-50 text-red-700 mb-2">
+            [ 403 FORBIDDEN • ADMIN ONLY ]
+          </span>
+          <h1 className="text-2xl font-black text-brand-textMain mb-2">
+            Escrow Vault Access Restricted
+          </h1>
+          <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6">
+            The Escrow Operations Vault is restricted to SwitchLab Administrators. You are signed in as <strong>{currentUser?.role || "GUEST"}</strong>.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link href="/orders">
+              <Button variant="primary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
+                Go to My Customer Orders →
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="secondary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
+                Log in as Administrator
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-brand-lightBg">
       {/* Toast Notification */}
@@ -249,26 +291,8 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {mounted && (!currentUser || currentUser.role !== "ADMIN") ? (
-          <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm my-8 max-w-2xl mx-auto">
-            <div className="text-4xl mb-3">🛡️</div>
-            <h2 className="text-xl font-black text-brand-textMain mb-2">Escrow Vault Access Restricted</h2>
-            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
-              The Escrow Operations Vault is restricted to SwitchLab Administrators. You are currently signed in as {currentUser?.role || "a Guest"}.
-            </p>
-            <div className="flex justify-center gap-3">
-              <Link href="/orders">
-                <Button variant="primary" isLoading={false} className="text-xs">View My Orders →</Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="secondary" isLoading={false} className="text-xs">Login as Admin</Button>
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Navigation Tabs */}
-            <div className="flex border-b-2 border-slate-900 mb-8 gap-2">
+        {/* Navigation Tabs */}
+        <div className="flex border-b-2 border-slate-900 mb-8 gap-2">
               <button
                 type="button"
                 onClick={() => setActiveTab("VERIFY_PAYMENTS")}
@@ -499,8 +523,6 @@ export default function AdminDashboardPage() {
               </p>
             </div>
           </div>
-        )}
-        </>
         )}
       </div>
 

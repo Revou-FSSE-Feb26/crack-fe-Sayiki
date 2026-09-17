@@ -166,21 +166,33 @@ export default function ProfilePage() {
             </div>
 
             {/* Header Action Shortcuts */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               {isModder && (
-                <Link href="/modder/dashboard">
-                  <Button variant="primary" className="text-xs uppercase font-bold shrink-0">
-                    🛠️ Open Workbench →
-                  </Button>
-                </Link>
+                <>
+                  <Link
+                    href="/modder/dashboard"
+                    className="h-9 px-4 border-2 border-slate-900 bg-amber-400 hover:bg-amber-300 text-slate-950 font-mono text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 whitespace-nowrap shadow-xs transition-colors shrink-0"
+                  >
+                    <span>🛠️</span>
+                    <span>Modder Workbench →</span>
+                  </Link>
+                  <Link
+                    href="/modder/create-listing"
+                    className="h-9 px-3.5 border-2 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 font-mono text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 whitespace-nowrap shadow-xs transition-colors shrink-0"
+                  >
+                    <span>➕</span>
+                    <span>Create Listing</span>
+                  </Link>
+                </>
               )}
-              <Button
-                variant="secondary"
+              <button
+                type="button"
                 onClick={handleLogout}
-                className="text-xs uppercase font-bold text-red-600 hover:text-red-800 border-red-300 hover:border-red-600 shrink-0"
+                className="h-9 px-3.5 border-2 border-red-500 bg-red-50 hover:bg-red-100 text-red-700 font-mono text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors shrink-0 cursor-pointer"
               >
-                Log Out
-              </Button>
+                <span>🚪</span>
+                <span>Log Out</span>
+              </button>
             </div>
           </div>
         </div>

@@ -14,6 +14,29 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var token = localStorage.getItem('token');
+                  var user = localStorage.getItem('user');
+                  if (token && token !== 'undefined' && token !== 'null') {
+                    document.cookie = 'token=' + encodeURIComponent(token) + '; path=/; max-age=604800; SameSite=Lax';
+                  }
+                  if (user && user !== 'undefined' && user !== 'null') {
+                    var parsed = JSON.parse(user);
+                    if (parsed && parsed.role) {
+                      document.cookie = 'user_role=' + encodeURIComponent(parsed.role) + '; path=/; max-age=604800; SameSite=Lax';
+                    }
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="bg-brand-lightBg text-brand-textMain flex flex-col min-h-screen">
         {/* --- DYNAMIC SWITCHLAB NAVIGATION BAR --- */}
         <Navbar />

@@ -1,16 +1,62 @@
 "use client";
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
-import { api } from '@/lib/api';
+import { api, syncAuthCookies } from '@/lib/api';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // Immediate Client-Side Guard: If already logged in, redirect immediately!
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const userObj = JSON.parse(storedUser);
+        const role = String(userObj?.role || '').toUpperCase();
+        if (role) {
+          // Sync cookies immediately to ensure middleware and edge requests are aligned
+          syncAuthCookies();
+
+          const redirect = searchParams.get("redirect");
+          if (redirect && !redirect.startsWith("/login") && !redirect.startsWith("/register")) {
+            if (redirect.startsWith("/modder") && role !== "MODDER" && role !== "ADMIN") {
+              router.replace("/orders");
+              return;
+            }
+            if (redirect.startsWith("/admin") && role !== "ADMIN") {
+              router.replace("/");
+              return;
+            }
+            router.replace(redirect);
+            return;
+          }
+
+          if (role === "ADMIN") {
+            router.replace("/admin");
+            return;
+          } else if (role === "MODDER") {
+            router.replace("/modder/dashboard");
+            return;
+          } else {
+            router.replace("/orders");
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setIsCheckingSession(false);
+    }
+  }, [router, searchParams]);
 
   const performLogin = async (loginEmail: string, loginPass: string) => {
     setError(null);
@@ -18,14 +64,28 @@ export default function LoginPage() {
 
     try {
       const res = await api.auth.login({ email: loginEmail, password: loginPass });
-      const userRole = res.user?.role;
+      const userRole = String(res.user?.role || '').toUpperCase();
+
+      const redirect = searchParams.get('redirect');
+      if (redirect && !redirect.startsWith('/login') && !redirect.startsWith('/register')) {
+        if (redirect.startsWith('/modder') && userRole !== 'MODDER' && userRole !== 'ADMIN') {
+          router.replace('/orders');
+          return;
+        }
+        if (redirect.startsWith('/admin') && userRole !== 'ADMIN') {
+          router.replace('/');
+          return;
+        }
+        router.replace(redirect);
+        return;
+      }
 
       if (userRole === 'ADMIN') {
-        router.push('/admin');
+        router.replace('/admin');
       } else if (userRole === 'MODDER') {
-        router.push('/modder/dashboard');
+        router.replace('/modder/dashboard');
       } else {
-        router.push('/');
+        router.replace('/orders');
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -44,6 +104,18 @@ export default function LoginPage() {
     setPassword('password123');
     performLogin(roleEmail, 'password123');
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+        <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+          <div className="inline-block animate-spin w-8 h-8 border-4 border-brand-navy border-t-transparent mb-4"></div>
+          <h2 className="text-base font-bold font-mono text-brand-textMain uppercase tracking-wide">Checking Session...</h2>
+          <p className="text-xs font-mono text-brand-textMuted mt-1">Connecting to SwitchLab Studio...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
@@ -127,5 +199,20 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+        <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+          <div className="inline-block animate-spin w-8 h-8 border-4 border-brand-navy border-t-transparent mb-4"></div>
+          <h2 className="text-base font-bold font-mono text-brand-textMain uppercase tracking-wide">Loading SwitchLab...</h2>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

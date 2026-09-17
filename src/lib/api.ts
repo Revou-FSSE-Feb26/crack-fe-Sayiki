@@ -43,13 +43,13 @@ export function syncAuthCookies() {
   try {
     const token = localStorage.getItem('token');
     const userRaw = localStorage.getItem('user');
-    if (token) {
-      document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+    if (token && token !== 'undefined' && token !== 'null') {
+      document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
     }
-    if (userRaw) {
+    if (userRaw && userRaw !== 'undefined' && userRaw !== 'null') {
       const user = JSON.parse(userRaw);
       if (user?.role) {
-        document.cookie = `user_role=${user.role}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `user_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax`;
       }
     }
   } catch (e) {}
@@ -66,11 +66,11 @@ export const api = {
       if (typeof window !== 'undefined') {
         if (token) {
           localStorage.setItem('token', token);
-          document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
         }
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
-          document.cookie = `user_role=${data.user.role || 'CUSTOMER'}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `user_role=${encodeURIComponent(data.user.role || 'CUSTOMER')}; path=/; max-age=604800; SameSite=Lax`;
         }
         window.dispatchEvent(new Event('storage'));
       }
@@ -94,11 +94,11 @@ export const api = {
       if (typeof window !== 'undefined') {
         if (token) {
           localStorage.setItem('token', token);
-          document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
         }
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
-          document.cookie = `user_role=${data.user.role || 'CUSTOMER'}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `user_role=${encodeURIComponent(data.user.role || 'CUSTOMER')}; path=/; max-age=604800; SameSite=Lax`;
         }
         window.dispatchEvent(new Event('storage'));
       }
@@ -109,8 +109,8 @@ export const api = {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
-        document.cookie = 'user_role=; path=/; max-age=0; SameSite=Lax';
+        document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+        document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
         window.dispatchEvent(new Event('storage'));
       }
     },

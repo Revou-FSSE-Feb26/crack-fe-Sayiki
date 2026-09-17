@@ -23,19 +23,36 @@ function parseJwt(token: string): { sub?: string; email?: string; role?: string 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const tokenCookie = request.cookies.get("token")?.value;
-  const roleCookie = request.cookies.get("user_role")?.value;
+  const rawToken = request.cookies.get("token")?.value;
+  const rawRole = request.cookies.get("user_role")?.value;
+
+  const tokenCookie = rawToken ? decodeURIComponent(rawToken) : undefined;
+  const roleCookie = rawRole ? decodeURIComponent(rawRole) : undefined;
 
   // Extract role from JWT token payload or cookie
   let role = roleCookie;
-  if (tokenCookie) {
+  if (tokenCookie && tokenCookie !== "undefined" && tokenCookie !== "null") {
     const payload = parseJwt(tokenCookie);
     if (payload?.role) {
       role = payload.role;
     }
   }
 
-  const isAuthenticated = Boolean(tokenCookie);
+  const hasValidToken = Boolean(
+    tokenCookie &&
+    tokenCookie !== "undefined" &&
+    tokenCookie !== "null" &&
+    tokenCookie.trim() !== ""
+  );
+  const hasValidRole = Boolean(
+    roleCookie &&
+    roleCookie !== "undefined" &&
+    roleCookie !== "null" &&
+    roleCookie.trim() !== ""
+  );
+
+  const isAuthenticated = hasValidToken || hasValidRole;
+  const normalizedRole = (role || "").toUpperCase();
 
   // 1. Modder Studio Workbench Protection (/modder/:path*)
   if (pathname.startsWith("/modder")) {
@@ -46,7 +63,7 @@ export function middleware(request: NextRequest) {
     }
 
     // Role Guard: Customer is strictly forbidden from accessing modder workbench!
-    if (role !== "MODDER" && role !== "ADMIN") {
+    if (normalizedRole !== "MODDER" && normalizedRole !== "ADMIN") {
       const ordersUrl = new URL("/orders", request.url);
       ordersUrl.searchParams.set("error", "unauthorized_modder_access");
       return NextResponse.redirect(ordersUrl);
@@ -62,7 +79,7 @@ export function middleware(request: NextRequest) {
     }
 
     // Role Guard: Strictly ADMIN only!
-    if (role !== "ADMIN") {
+    if (normalizedRole !== "ADMIN") {
       const homeUrl = new URL("/", request.url);
       homeUrl.searchParams.set("error", "unauthorized_admin_access");
       return NextResponse.redirect(homeUrl);
@@ -87,12 +104,27 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 5. Auth Pages (/login, /register) - Redirect already logged in users
+  // 5. Auth Pages (/login, /register) - Redirect already logged in users immediately!
   if (pathname === "/login" || pathname === "/register") {
     if (isAuthenticated) {
-      if (role === "ADMIN") {
+      const redirectTarget = request.nextUrl.searchParams.get("redirect");
+      if (
+        redirectTarget &&
+        !redirectTarget.startsWith("/login") &&
+        !redirectTarget.startsWith("/register")
+      ) {
+        if (redirectTarget.startsWith("/modder") && normalizedRole !== "MODDER" && normalizedRole !== "ADMIN") {
+          return NextResponse.redirect(new URL("/orders", request.url));
+        }
+        if (redirectTarget.startsWith("/admin") && normalizedRole !== "ADMIN") {
+          return NextResponse.redirect(new URL("/", request.url));
+        }
+        return NextResponse.redirect(new URL(redirectTarget, request.url));
+      }
+
+      if (normalizedRole === "ADMIN") {
         return NextResponse.redirect(new URL("/admin", request.url));
-      } else if (role === "MODDER") {
+      } else if (normalizedRole === "MODDER") {
         return NextResponse.redirect(new URL("/modder/dashboard", request.url));
       } else {
         return NextResponse.redirect(new URL("/orders", request.url));

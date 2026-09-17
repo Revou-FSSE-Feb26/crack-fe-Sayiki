@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
-import { api } from "@/lib/api";
+import { api, syncAuthCookies } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
 import { EditProfileModal } from "@/components/EditProfileModal";
 
@@ -66,6 +66,7 @@ export default function ModderDashboardPage() {
           currentUserId = userObj.id;
           setLoggedInUserId(userObj.id);
         }
+        syncAuthCookies();
       }
     } catch (e) {}
 
@@ -75,7 +76,8 @@ export default function ModderDashboardPage() {
       router.replace("/login?redirect=/modder/dashboard");
       return;
     }
-    if (userObj.role !== "MODDER" && userObj.role !== "ADMIN") {
+    const role = String(userObj.role || "").toUpperCase();
+    if (role !== "MODDER" && role !== "ADMIN") {
       setLoading(false);
       router.replace("/orders?error=unauthorized_modder_access");
       return;
@@ -429,7 +431,8 @@ export default function ModderDashboardPage() {
   const displayedJobs = activeTab === "ACTIVE" ? activeJobs : completedJobs;
 
   // Full-screen guard: Customers and Guests CANNOT see or access the modder workbench
-  if (mounted && (!currentUser || (currentUser.role !== "MODDER" && currentUser.role !== "ADMIN"))) {
+  const userRole = String(currentUser?.role || "").toUpperCase();
+  if (mounted && (!currentUser || (userRole !== "MODDER" && userRole !== "ADMIN"))) {
     return (
       <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl">

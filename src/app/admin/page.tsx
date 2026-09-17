@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
-import { api } from "@/lib/api";
+import { api, syncAuthCookies } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
 
 interface PendingPayment {
@@ -47,6 +47,7 @@ export default function AdminDashboardPage() {
       if (storedUser) {
         userObj = JSON.parse(storedUser);
         setCurrentUser(userObj);
+        syncAuthCookies();
       }
     } catch (e) {}
 
@@ -56,7 +57,8 @@ export default function AdminDashboardPage() {
       router.replace("/login?redirect=/admin");
       return;
     }
-    if (userObj.role !== "ADMIN") {
+    const role = String(userObj.role || "").toUpperCase();
+    if (role !== "ADMIN") {
       setLoading(false);
       router.replace("/orders?error=unauthorized_admin_access");
       return;
@@ -218,7 +220,8 @@ export default function AdminDashboardPage() {
   const pendingCount = payments.filter((p) => p.status === "PENDING").length;
 
   // Full-screen guard: Customers and Guests CANNOT access the Escrow Vault
-  if (mounted && (!currentUser || currentUser.role !== "ADMIN")) {
+  const userRole = String(currentUser?.role || "").toUpperCase();
+  if (mounted && (!currentUser || userRole !== "ADMIN")) {
     return (
       <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl">

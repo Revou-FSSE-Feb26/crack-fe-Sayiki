@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { api } from "@/lib/api";
+import { api, syncAuthCookies } from "@/lib/api";
 
 export default function RegisterPage(){
   const router = useRouter();
@@ -14,6 +14,34 @@ export default function RegisterPage(){
   const [city, setCity] = useState("Jakarta");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // Client-Side Guard: If already logged in, redirect away from /register
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const userObj = JSON.parse(storedUser);
+        const role = String(userObj?.role || '').toUpperCase();
+        if (role) {
+          syncAuthCookies();
+          if (role === "ADMIN") {
+            router.replace("/admin");
+            return;
+          } else if (role === "MODDER") {
+            router.replace("/modder/dashboard");
+            return;
+          } else {
+            router.replace("/orders");
+            return;
+          }
+        }
+      }
+    } catch (e) {
+    } finally {
+      setIsCheckingSession(false);
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,13 +61,29 @@ export default function RegisterPage(){
         localStorage.removeItem('switchlab_orders');
         window.dispatchEvent(new Event('cart_updated'));
       }
-      router.push('/');
+      if (selectedRole === 'MODDER') {
+        router.push('/modder/dashboard');
+      } else {
+        router.push('/');
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+        <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+          <div className="inline-block animate-spin w-8 h-8 border-4 border-brand-navy border-t-transparent mb-4"></div>
+          <h2 className="text-base font-bold font-mono text-brand-textMain uppercase tracking-wide">Checking Session...</h2>
+          <p className="text-xs font-mono text-brand-textMuted mt-1">Connecting to SwitchLab Studio...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">

@@ -449,15 +449,6 @@ export default function OrderDetailPage() {
                 ⚡ Open Admin Vault (Simulate Approve) →
               </a>
             )}
-            {isCompleted && (
-              <Link
-                href={`/orders/${orderId}/rate`}
-                className="text-xs font-mono font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 border-2 border-slate-900 uppercase tracking-wider inline-flex items-center gap-1.5 shadow-xs transition-colors"
-              >
-                <span>⭐</span>
-                <span>{order?.review ? `Edit Review (${order.review.rating}★) →` : "Rate Modder Now →"}</span>
-              </Link>
-            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 relative">
@@ -688,17 +679,8 @@ export default function OrderDetailPage() {
               )}
 
               {escrowReleased || order?.status === "SUCCESS" ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-green-50 border-2 border-green-600 text-center font-mono text-xs text-green-800 font-bold uppercase">
-                    ✓ Escrow Released to Modder
-                  </div>
-                  <Link
-                    href={`/orders/${orderId}/rate`}
-                    className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 inline-flex items-center justify-center gap-1.5 shadow-xs transition-colors"
-                  >
-                    <span>⭐</span>
-                    <span>{order?.review ? "Edit Modder Review →" : "Rate Modder →"}</span>
-                  </Link>
+                <div className="p-4 bg-green-50 border-2 border-green-600 text-center font-mono text-xs text-green-800 font-bold uppercase">
+                  ✓ Escrow Released to Modder. Thank you!
                 </div>
               ) : isPendingVerification ? (
                 <div className="p-3 bg-slate-100 border-2 border-slate-400 text-center font-mono text-xs text-slate-600 font-bold uppercase">

@@ -38,6 +38,7 @@ export default function ModderDashboardPage() {
   const [dispatchTrackingInput, setDispatchTrackingInput] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -158,21 +159,23 @@ export default function ModderDashboardPage() {
 
   // Modder Accepts Job
   const handleAcceptJob = async (jobId: string) => {
-    const nextStatus = selectedJob?.deliveryMethod === "WALK_IN"
-      ? "CUSTOMER_SENDING_KEYBOARD"
-      : "CUSTOMER_SENDING_KEYBOARD";
+    setActionLoading(jobId + "_accept");
+    const nextStatus = "CUSTOMER_SENDING_KEYBOARD";
 
-    try {
-      await api.orders.update(jobId, { status: nextStatus }).catch(() => null);
-    } catch (e) {}
-
+    // Optimistically update UI immediately
     setJobs((prev) =>
       prev.map((j) => (j.id === jobId ? { ...j, status: nextStatus } : j))
     );
     if (selectedJob?.id === jobId) {
       setSelectedJob((prev) => (prev ? { ...prev, status: nextStatus } : null));
     }
-    showToast("✓ Booking Accepted! Customer notified to drop off or ship their keyboard.");
+
+    try {
+      await api.orders.update(jobId, { status: nextStatus }).catch(() => null);
+      showToast("✓ Booking Accepted! Customer notified to drop off or ship their keyboard.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Modder Cancels / Declines Job
@@ -182,24 +185,27 @@ export default function ModderDashboardPage() {
     );
     if (!confirmed) return;
 
-    try {
-      await api.orders.update(jobId, { status: "UNDER_DISPUTE" }).catch(() => null);
-    } catch (e) {}
+    setActionLoading(jobId + "_cancel");
 
+    // Optimistically update UI immediately
     setJobs((prev) =>
       prev.map((j) => (j.id === jobId ? { ...j, status: "UNDER_DISPUTE" } : j))
     );
     if (selectedJob?.id === jobId) {
       setSelectedJob((prev) => (prev ? { ...prev, status: "UNDER_DISPUTE" } : null));
     }
-    showToast("✕ Order cancelled by modder. Marked as UNDER_DISPUTE for escrow refund.");
+
+    try {
+      await api.orders.update(jobId, { status: "UNDER_DISPUTE" }).catch(() => null);
+      showToast("✕ Order cancelled by modder. Marked as UNDER_DISPUTE for escrow refund.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Modder Confirms Arrival
   const handleConfirmArrival = async (jobId: string) => {
-    try {
-      await api.orders.update(jobId, { status: "KEYBOARD_IN_MODDER_HAND" }).catch(() => null);
-    } catch (e) {}
+    setActionLoading(jobId + "_arrival");
 
     setJobs((prev) =>
       prev.map((j) =>
@@ -223,22 +229,23 @@ export default function ModderDashboardPage() {
           : null
       );
     }
-    showToast("Keyboard arrival confirmed! Customer order tracker updated to KEYBOARD_IN_MODDER_HAND.");
+
+    try {
+      await api.orders.update(jobId, { status: "KEYBOARD_IN_MODDER_HAND" }).catch(() => null);
+      showToast("Keyboard arrival confirmed! Customer order tracker updated to KEYBOARD_IN_MODDER_HAND.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Modder Dispatches Outbound
   const handleDispatchShipment = async () => {
     if (!selectedJob) return;
+    setActionLoading(selectedJob.id + "_dispatch");
+
     const trackingCode = selectedJob.deliveryMethod === "WALK_IN"
       ? "STUDIO-HANDOFF-COMPLETED"
       : dispatchTrackingInput.trim() || "SICEPAT-MOD-DISPATCH";
-
-    try {
-      await api.orders.update(selectedJob.id, {
-        status: "SHIPPED_BACK",
-        outboundTrackingNum: trackingCode,
-      }).catch(() => null);
-    } catch (e) {}
 
     setJobs((prev) =>
       prev.map((j) =>
@@ -256,11 +263,21 @@ export default function ModderDashboardPage() {
           }
         : null
     );
-    showToast(
-      selectedJob.deliveryMethod === "WALK_IN"
-        ? "Build completed! Customer notified for Studio Walk-In pickup."
-        : `Order dispatched! Outbound tracking #${trackingCode} logged. Customer notified.`
-    );
+
+    try {
+      await api.orders.update(selectedJob.id, {
+        status: "SHIPPED_BACK",
+        outboundTrackingNum: trackingCode,
+      }).catch(() => null);
+
+      showToast(
+        selectedJob.deliveryMethod === "WALK_IN"
+          ? "Build completed! Customer notified for Studio Walk-In pickup."
+          : `Order dispatched! Outbound tracking #${trackingCode} logged. Customer notified.`
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const activeJobs = jobs.filter((j) => j.status !== "SUCCESS" && j.status !== "UNDER_DISPUTE");
@@ -464,17 +481,33 @@ export default function ModderDashboardPage() {
                         <div className="flex gap-2 shrink-0">
                           <button
                             type="button"
+                            disabled={actionLoading !== null}
                             onClick={() => handleAcceptJob(selectedJob.id)}
-                            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase"
+                            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold text-xs uppercase flex items-center gap-1.5 transition-all"
                           >
-                            ✓ Accept Job
+                            {actionLoading === selectedJob.id + "_accept" ? (
+                              <>
+                                <span className="animate-spin inline-block font-mono">⚙️</span>
+                                <span>Accepting...</span>
+                              </>
+                            ) : (
+                              "✓ Accept Job"
+                            )}
                           </button>
                           <button
                             type="button"
+                            disabled={actionLoading !== null}
                             onClick={() => handleCancelJob(selectedJob.id)}
-                            className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs uppercase"
+                            className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 disabled:opacity-60 text-white font-bold text-xs uppercase flex items-center gap-1.5 transition-all"
                           >
-                            ✕ Decline Job
+                            {actionLoading === selectedJob.id + "_cancel" ? (
+                              <>
+                                <span className="animate-spin inline-block font-mono">⚙️</span>
+                                <span>Declining...</span>
+                              </>
+                            ) : (
+                              "✕ Decline Job"
+                            )}
                           </button>
                         </div>
                       </div>
@@ -523,10 +556,18 @@ export default function ModderDashboardPage() {
                         </div>
                         <button
                           type="button"
+                          disabled={actionLoading !== null}
                           onClick={() => handleConfirmArrival(selectedJob.id)}
-                          className="px-4 py-2 bg-brand-navy hover:bg-[#132856] text-white font-bold text-xs uppercase shrink-0"
+                          className="px-4 py-2 bg-brand-navy hover:bg-[#132856] disabled:opacity-60 text-white font-bold text-xs uppercase shrink-0 flex items-center gap-1.5 transition-all"
                         >
-                          ✓ Confirm Arrival (Move to Workbench)
+                          {actionLoading === selectedJob.id + "_arrival" ? (
+                            <>
+                              <span className="animate-spin inline-block font-mono">⚙️</span>
+                              <span>Confirming...</span>
+                            </>
+                          ) : (
+                            "✓ Confirm Arrival (Move to Workbench)"
+                          )}
                         </button>
                       </div>
                     </div>
@@ -571,10 +612,18 @@ export default function ModderDashboardPage() {
                       <div className="flex gap-2">
                         <button
                           type="button"
+                          disabled={actionLoading !== null}
                           onClick={handleDispatchShipment}
-                          className="w-full py-2.5 bg-brand-navy text-white font-bold hover:bg-[#132856] text-xs uppercase"
+                          className="w-full py-2.5 bg-brand-navy text-white font-bold hover:bg-[#132856] disabled:opacity-60 text-xs uppercase flex items-center justify-center gap-1.5 transition-all"
                         >
-                          ✓ Mark Build Finished & Notify for Studio Pickup
+                          {actionLoading === selectedJob.id + "_dispatch" ? (
+                            <>
+                              <span className="animate-spin inline-block font-mono">⚙️</span>
+                              <span>Completing...</span>
+                            </>
+                          ) : (
+                            "✓ Mark Build Finished & Notify for Studio Pickup"
+                          )}
                         </button>
                       </div>
                     ) : (
@@ -588,10 +637,18 @@ export default function ModderDashboardPage() {
                         />
                         <button
                           type="button"
+                          disabled={actionLoading !== null}
                           onClick={handleDispatchShipment}
-                          className="px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] text-xs uppercase"
+                          className="px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] disabled:opacity-60 text-xs uppercase flex items-center gap-1.5 transition-all"
                         >
-                          Dispatch & Notify
+                          {actionLoading === selectedJob.id + "_dispatch" ? (
+                            <>
+                              <span className="animate-spin inline-block font-mono">⚙️</span>
+                              <span>Dispatching...</span>
+                            </>
+                          ) : (
+                            "Dispatch & Notify"
+                          )}
                         </button>
                       </div>
                     )}

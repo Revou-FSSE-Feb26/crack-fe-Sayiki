@@ -26,6 +26,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<PendingPayment | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -111,9 +112,12 @@ export default function AdminDashboardPage() {
   }, []);
 
   const handleApprove = async (id: string) => {
-    try {
-      await api.orders.update(id, { status: "PAID_WAITING_MODDER" }).catch(() => null);
-    } catch (e) {}
+    setActionLoading(id + "_approve");
+
+    // Optimistically update UI immediately
+    setPayments((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: "APPROVED" } : p))
+    );
 
     // Update local storage if present
     try {
@@ -129,21 +133,28 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {}
 
-    setPayments((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "APPROVED" } : p))
-    );
-    showToast("Payment Approved! Order status updated to PAID_WAITING_MODDER. Funds locked in Escrow.");
+    try {
+      await api.orders.update(id, { status: "PAID_WAITING_MODDER" }).catch(() => null);
+      showToast("Payment Approved! Order status updated to PAID_WAITING_MODDER. Funds locked in Escrow.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleReject = async (id: string) => {
-    try {
-      await api.orders.update(id, { status: "UNPAID" }).catch(() => null);
-    } catch (e) {}
+    setActionLoading(id + "_reject");
 
+    // Optimistically update UI immediately
     setPayments((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "REJECTED" } : p))
     );
-    showToast("Payment Flagged & Rejected. Customer notified to upload valid mutasi receipt.");
+
+    try {
+      await api.orders.update(id, { status: "UNPAID" }).catch(() => null);
+      showToast("Payment Flagged & Rejected. Customer notified to upload valid mutasi receipt.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const pendingCount = payments.filter((p) => p.status === "PENDING").length;
@@ -301,17 +312,33 @@ export default function AdminDashboardPage() {
                               <div className="flex gap-2 justify-center">
                                 <button
                                   type="button"
+                                  disabled={actionLoading !== null}
                                   onClick={() => handleApprove(p.id)}
-                                  className="px-3 py-1.5 bg-emerald-700 text-white font-bold hover:bg-emerald-800 active:scale-95 shadow-sm"
+                                  className="px-3 py-1.5 bg-emerald-700 text-white font-bold hover:bg-emerald-800 disabled:opacity-60 active:scale-95 shadow-sm flex items-center gap-1 transition-all"
                                 >
-                                  ✓ Approve
+                                  {actionLoading === p.id + "_approve" ? (
+                                    <>
+                                      <span className="animate-spin inline-block font-mono">⚙️</span>
+                                      <span>Approving...</span>
+                                    </>
+                                  ) : (
+                                    "✓ Approve"
+                                  )}
                                 </button>
                                 <button
                                   type="button"
+                                  disabled={actionLoading !== null}
                                   onClick={() => handleReject(p.id)}
-                                  className="px-2.5 py-1.5 bg-white border border-rose-400 text-rose-700 font-bold hover:bg-rose-50 active:scale-95"
+                                  className="px-2.5 py-1.5 bg-white border border-rose-400 text-rose-700 font-bold hover:bg-rose-50 disabled:opacity-60 active:scale-95 flex items-center gap-1 transition-all"
                                 >
-                                  ✕ Reject
+                                  {actionLoading === p.id + "_reject" ? (
+                                    <>
+                                      <span className="animate-spin inline-block font-mono">⚙️</span>
+                                      <span>Rejecting...</span>
+                                    </>
+                                  ) : (
+                                    "✕ Reject"
+                                  )}
                                 </button>
                               </div>
                             ) : p.status === "APPROVED" ? (
@@ -452,23 +479,41 @@ export default function AdminDashboardPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  handleApprove(selectedReceipt.id);
+                disabled={actionLoading !== null}
+                onClick={async () => {
+                  const id = selectedReceipt.id;
                   setSelectedReceipt(null);
+                  await handleApprove(id);
                 }}
-                className="flex-1 py-2.5 bg-emerald-700 text-white font-bold hover:bg-emerald-800 text-xs uppercase"
+                className="flex-1 py-2.5 bg-emerald-700 text-white font-bold hover:bg-emerald-800 disabled:opacity-60 text-xs uppercase flex items-center justify-center gap-1.5 transition-all"
               >
-                Approve Payment
+                {actionLoading === selectedReceipt.id + "_approve" ? (
+                  <>
+                    <span className="animate-spin inline-block font-mono">⚙️</span>
+                    <span>Approving...</span>
+                  </>
+                ) : (
+                  "Approve Payment"
+                )}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  handleReject(selectedReceipt.id);
+                disabled={actionLoading !== null}
+                onClick={async () => {
+                  const id = selectedReceipt.id;
                   setSelectedReceipt(null);
+                  await handleReject(id);
                 }}
-                className="flex-1 py-2.5 bg-white border-2 border-rose-500 text-rose-700 font-bold hover:bg-rose-50 text-xs uppercase"
+                className="flex-1 py-2.5 bg-white border-2 border-rose-500 text-rose-700 font-bold hover:bg-rose-50 disabled:opacity-60 text-xs uppercase flex items-center justify-center gap-1.5 transition-all"
               >
-                Reject Proof
+                {actionLoading === selectedReceipt.id + "_reject" ? (
+                  <>
+                    <span className="animate-spin inline-block font-mono">⚙️</span>
+                    <span>Rejecting...</span>
+                  </>
+                ) : (
+                  "Reject Proof"
+                )}
               </button>
             </div>
           </div>

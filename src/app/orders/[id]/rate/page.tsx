@@ -7,22 +7,22 @@ import { api } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
 
 const QUICK_TAGS = [
-  "✨ Kualitas Modding Mantap",
-  "🔊 Suara Thocky / Clacky",
-  "🧈 Stem Switch Halus",
-  "🔇 Zero Wire Rattle",
-  "⚡ Pengerjaan Cepat",
-  "📦 Packing Sangat Aman",
-  "💬 Respon Modder Ramah",
-  "🎯 Sesuai Ekspektasi",
+  "✨ Masterful Modding Quality",
+  "🔊 Deep Thocky / Clean Clacky",
+  "🧈 Buttery Smooth Switches",
+  "🔇 Zero Stabilizer Rattle",
+  "⚡ Fast Turnaround Time",
+  "📦 Bulletproof Packaging",
+  "💬 Great Communication",
+  "🎯 Exceeded Expectations",
 ];
 
 const RATING_FEEDBACK: Record<number, { title: string; subtitle: string }> = {
-  5: { title: "Sangat Puas! 😍", subtitle: "Kualitas modding dan suara keyboard luar biasa mantap!" },
-  4: { title: "Puas 👍", subtitle: "Pengerjaan rapi dan tactile feel enak sesuai pesanan." },
-  3: { title: "Cukup Puas 👌", subtitle: "Hasil modding standar, cukup memenuhi ekspektasi." },
-  2: { title: "Kurang Puas 😕", subtitle: "Ada beberapa bagian rattle atau stem yang kurang pas." },
-  1: { title: "Kecewa 😞", subtitle: "Hasil pengerjaan tidak sesuai dengan kesepakatan." },
+  5: { title: "Outstanding! 😍", subtitle: "Top-tier craftsmanship, stellar acoustics, and great service!" },
+  4: { title: "Great Experience 👍", subtitle: "Clean modding work and satisfying keypress feel." },
+  3: { title: "Satisfactory 👌", subtitle: "Standard modding work that meets baseline expectations." },
+  2: { title: "Needs Improvement 😕", subtitle: "Noticed slight stabilizer wire rattle or uneven lubing." },
+  1: { title: "Disappointed 😞", subtitle: "Build quality did not meet agreed specifications." },
 };
 
 export default function OrderRatingPage() {
@@ -36,13 +36,13 @@ export default function OrderRatingPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tokopedia-style review form state
+  // Review form state
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [comment, setComment] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([
-    "✨ Kualitas Modding Mantap",
-    "🔊 Suara Thocky / Clacky",
+    "✨ Masterful Modding Quality",
+    "🔊 Deep Thocky / Clean Clacky",
   ]);
   const [typingTestUrl, setTypingTestUrl] = useState<string>("");
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -126,7 +126,7 @@ export default function OrderRatingPage() {
     setError(null);
     setSubmitting(true);
 
-    const fullComment = comment.trim() || "Puas banget dengan hasil tuning dan lubing modder ini!";
+    const fullComment = comment.trim() || "Extremely satisfied with the build quality and acoustic profile tuned by this modder!";
 
     try {
       try {
@@ -169,8 +169,8 @@ export default function OrderRatingPage() {
         targetRole: "MODDER",
         targetUserId: order?.modderId || order?.modder?.id,
         type: "ORDER",
-        title: `⭐ Ulasan Baru ★${rating}.0 dari Pelanggan!`,
-        message: `Pelanggan memberikan ulasan untuk pesanan #${orderId}: "${fullComment}"`,
+        title: `⭐ New ★${rating}.0 Review from Customer!`,
+        message: `Customer left a review for Order #${orderId}: "${fullComment}"`,
         orderId: orderId,
         link: "/modder/dashboard",
       });
@@ -179,7 +179,7 @@ export default function OrderRatingPage() {
       setIsEditing(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
-      setError(err?.message || "Gagal mengirim ulasan. Silakan coba lagi.");
+      setError(err?.message || "Failed to submit review. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -190,7 +190,7 @@ export default function OrderRatingPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-mono">
         <div className="bg-white border-2 border-slate-900 p-8 text-center max-w-sm w-full shadow-md">
           <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
-          <p className="text-sm font-bold text-slate-800">Memuat Formulir Ulasan...</p>
+          <p className="text-sm font-bold text-slate-800">Loading Review Form...</p>
         </div>
       </div>
     );
@@ -201,15 +201,15 @@ export default function OrderRatingPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-mono">
         <div className="bg-white border-2 border-slate-900 p-8 text-center max-w-md w-full shadow-md space-y-4">
           <div className="text-4xl">📦</div>
-          <h2 className="text-lg font-black text-slate-900">Pesanan Tidak Ditemukan</h2>
+          <h2 className="text-lg font-black text-slate-900">Order Not Found</h2>
           <p className="text-xs text-slate-600">
-            Pesanan #{orderId} tidak ditemukan untuk diberikan ulasan.
+            Order #{orderId} could not be found to leave a review.
           </p>
           <Link
             href="/orders"
             className="inline-block px-5 py-2.5 bg-brand-navy text-white text-xs font-bold uppercase hover:bg-slate-800"
           >
-            ← Kembali ke Daftar Pesanan
+            ← Back to Orders
           </Link>
         </div>
       </div>
@@ -229,7 +229,7 @@ export default function OrderRatingPage() {
             className="text-xs font-mono font-bold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1.5"
           >
             <span>←</span>
-            <span>Kembali ke Detail Pesanan</span>
+            <span>Back to Order Details</span>
           </Link>
           <span className="text-[11px] font-mono text-slate-400">
             Order #{order.id.slice(0, 8)}...
@@ -241,13 +241,13 @@ export default function OrderRatingPage() {
           <div className="p-4 bg-emerald-50 border-2 border-emerald-600 text-emerald-900 text-xs font-mono font-bold flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2">
               <span className="text-base">✓</span>
-              <span>Ulasan berhasil disimpan! Terima kasih telah memberi rating.</span>
+              <span>Review submitted successfully! Thank you for rating this build.</span>
             </div>
             <Link
               href={`/orders/${orderId}`}
               className="px-3 py-1 bg-emerald-600 text-white text-[11px] uppercase font-bold hover:bg-emerald-700"
             >
-              Lihat Pesanan
+              View Order
             </Link>
           </div>
         )}
@@ -266,9 +266,9 @@ export default function OrderRatingPage() {
           </div>
         )}
 
-        {/* Main Review Card - Wider Tokopedia Style */}
+        {/* Main Review Card */}
         <div className="bg-white border-2 border-slate-900 shadow-md">
-          {/* Header Bar: Product & Seller Info */}
+          {/* Header Bar: Service & Modder Info */}
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/80">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 bg-brand-navy text-white text-xl flex items-center justify-center border border-slate-800 shrink-0 shadow-2xs">
@@ -276,7 +276,7 @@ export default function OrderRatingPage() {
               </div>
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700 block">
-                  ✓ Selesai • Escrow Released
+                  ✓ Completed • Escrow Released
                 </span>
                 <h2 className="text-sm font-bold text-slate-900">
                   {order.service}
@@ -308,10 +308,10 @@ export default function OrderRatingPage() {
                     ))}
                   </div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {RATING_FEEDBACK[order.review.rating]?.title || "Puas"}
+                    {RATING_FEEDBACK[order.review.rating]?.title || "Satisfied"}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Ulasan kamu aktif di profil modder
+                    Your verified review is live on the modder&apos;s portfolio profile.
                   </p>
                 </div>
 
@@ -333,7 +333,7 @@ export default function OrderRatingPage() {
               <div className="md:col-span-7 p-6 space-y-4 flex flex-col justify-between">
                 <div className="space-y-3">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                    Ulasan yang kamu tulis:
+                    What you shared:
                   </span>
                   <div className="p-4 bg-slate-50 border border-slate-300 rounded text-xs text-slate-800 leading-relaxed italic">
                     &ldquo;{order.review.comment}&rdquo;
@@ -348,7 +348,7 @@ export default function OrderRatingPage() {
                         rel="noreferrer"
                         className="text-brand-navy font-bold hover:underline"
                       >
-                        Buka Link Sound Test ↗
+                        Open Sound Test Link ↗
                       </a>
                     </div>
                   )}
@@ -359,20 +359,20 @@ export default function OrderRatingPage() {
                     href={`/orders/${orderId}`}
                     className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50"
                   >
-                    Kembali
+                    Back
                   </Link>
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
                     className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider border-2 border-slate-900 cursor-pointer"
                   >
-                    ✏️ Ubah Ulasan
+                    ✏️ Edit Review
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            /* Wider 2-Column Rating Input Form */
+            /* 2-Column Rating Input Form */
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x border-slate-200">
                 {/* Left Column: Star Rating & Quick Tags */}
@@ -380,7 +380,7 @@ export default function OrderRatingPage() {
                   {/* Star Rating */}
                   <div className="text-center space-y-2">
                     <p className="text-xs font-mono font-bold text-slate-700 uppercase tracking-wider">
-                      Bagaimana kualitas modding dari modder?
+                      How would you rate the modding quality & service?
                     </p>
 
                     <div className="flex justify-center items-center gap-1.5 py-1">
@@ -396,7 +396,7 @@ export default function OrderRatingPage() {
                             className={`text-4xl transition-all duration-150 transform hover:scale-125 focus:outline-none cursor-pointer p-0.5 ${
                               active ? "text-amber-400" : "text-slate-200 hover:text-amber-200"
                             }`}
-                            title={`${star} Bintang`}
+                            title={`${star} Star${star > 1 ? "s" : ""}`}
                           >
                             ★
                           </button>
@@ -414,10 +414,10 @@ export default function OrderRatingPage() {
                     </div>
                   </div>
 
-                  {/* Quick Tags ("Puas dengan apa?") */}
+                  {/* Quick Tags */}
                   <div className="space-y-2 pt-3 border-t border-slate-200">
                     <label className="block text-xs font-mono font-bold text-slate-700">
-                      Apa yang paling kamu suka dari modding ini?
+                      What did you appreciate most about this build?
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {QUICK_TAGS.map((tag) => {
@@ -446,7 +446,7 @@ export default function OrderRatingPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <label className="block text-xs font-mono font-bold text-slate-700">
-                        Tulis ulasan untuk modder:
+                        Write a review for the modder:
                       </label>
                       <span className="text-[11px] font-mono text-slate-400">
                         {comment.length}/500
@@ -457,7 +457,7 @@ export default function OrderRatingPage() {
                       maxLength={500}
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      placeholder="Ceritakan kepuasanmu tentang kualitas modding, sound test, dan layanan modder..."
+                      placeholder="Share your thoughts on acoustic sound profile, switch smoothness, stabilizer balance, and communication..."
                       className="w-full p-3 border-2 border-slate-800 text-xs font-mono bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-navy"
                       required
                     />
@@ -470,13 +470,13 @@ export default function OrderRatingPage() {
                           onClick={() => setShowUrlInput(true)}
                           className="text-xs font-mono text-brand-navy hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
                         >
-                          <span>+ Tambah link video/sound test typing (opsional)</span>
+                          <span>+ Add sound / typing test link (optional)</span>
                         </button>
                       ) : (
                         <div className="space-y-1 bg-slate-50 p-2.5 border border-slate-300">
                           <div className="flex justify-between items-center">
                             <label className="text-[11px] font-mono font-bold text-slate-700">
-                              Link YouTube / SoundCloud Sound Test:
+                              YouTube / SoundCloud Sound Test Link:
                             </label>
                             <button
                               type="button"
@@ -486,7 +486,7 @@ export default function OrderRatingPage() {
                               }}
                               className="text-[10px] text-slate-500 hover:text-slate-800 font-bold"
                             >
-                              Hapus
+                              Remove
                             </button>
                           </div>
                           <input
@@ -509,14 +509,14 @@ export default function OrderRatingPage() {
                         onClick={() => setIsEditing(false)}
                         className="px-4 py-2 border border-slate-400 text-slate-700 text-xs font-mono font-bold uppercase hover:bg-slate-100 cursor-pointer"
                       >
-                        Batal
+                        Cancel
                       </button>
                     ) : (
                       <Link
                         href={`/orders/${orderId}`}
                         className="px-4 py-2 text-slate-600 text-xs font-mono font-bold hover:text-slate-900 cursor-pointer"
                       >
-                        Nanti Saja
+                        Maybe Later
                       </Link>
                     )}
 
@@ -526,7 +526,7 @@ export default function OrderRatingPage() {
                       isLoading={submitting}
                       className="px-7 py-2.5 text-xs font-mono uppercase font-bold"
                     >
-                      {submitting ? "Mengirim..." : isEditing ? "Simpan Perubahan →" : "Kirim Ulasan →"}
+                      {submitting ? "Submitting..." : isEditing ? "Save Changes →" : "Submit Review →"}
                     </Button>
                   </div>
                 </div>

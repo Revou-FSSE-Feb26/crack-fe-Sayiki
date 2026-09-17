@@ -41,13 +41,15 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
 export const api = {
   auth: {
     login: async (credentials: { email: string; password: string }) => {
-      const data = await apiFetch<{ accessToken: string; user: any }>('/auth/login', {
+      const data = await apiFetch<any>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
+      const token = data.accessToken || data.access_token;
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', data.accessToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        if (token) localStorage.setItem('token', token);
+        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        window.dispatchEvent(new Event('storage'));
       }
       return data;
     },
@@ -58,16 +60,18 @@ export const api = {
       role: 'CUSTOMER' | 'MODDER';
       locationCity?: string;
     }) => {
-      const data = await apiFetch<{ accessToken: string; user: any }>('/auth/register', {
+      const data = await apiFetch<any>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           ...payload,
           locationCity: payload.locationCity || 'Jakarta',
         }),
       });
+      const token = data.accessToken || data.access_token;
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', data.accessToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        if (token) localStorage.setItem('token', token);
+        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        window.dispatchEvent(new Event('storage'));
       }
       return data;
     },

@@ -27,6 +27,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<"VERIFY_PAYMENTS" | "DISBURSEMENTS" | "DISPUTES">("VERIFY_PAYMENTS");
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [completedOrders, setCompletedOrders] = useState<any[]>([]);
+  const [disbursedOrders, setDisbursedOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<PendingPayment | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -127,9 +128,35 @@ export default function AdminDashboardPage() {
 
       setPayments(combined);
 
-      // Completed orders for disbursement
-      const completed = dbOrders.filter((o: any) => o.status === "SUCCESS" || o.status === "SHIPPED_BACK");
-      setCompletedOrders(completed);
+      // Retrieve stored disbursed payout IDs
+      let disbursedIds: string[] = [];
+      try {
+        const storedDisbursed = localStorage.getItem("switchlab_disbursed_payouts");
+        if (storedDisbursed) {
+          disbursedIds = JSON.parse(storedDisbursed);
+          if (!Array.isArray(disbursedIds)) disbursedIds = [];
+        }
+      } catch (e) {}
+
+      // Combine db orders and local orders
+      const allOrders = [...dbOrders];
+      (Array.isArray(localOrders) ? localOrders : []).forEach((lo: any) => {
+        if (!allOrders.some((o: any) => o.id === lo.id)) {
+          allOrders.push(lo);
+        }
+      });
+
+      // Pending Completed orders for disbursement: status is SUCCESS and NOT disbursed
+      const pendingDisbursement = allOrders.filter(
+        (o: any) => o.status === "SUCCESS" && !o.isDisbursed && !disbursedIds.includes(o.id)
+      );
+      setCompletedOrders(pendingDisbursement);
+
+      // Disbursed history: status is SUCCESS and IS disbursed
+      const disbursedHistory = allOrders.filter(
+        (o: any) => o.isDisbursed || disbursedIds.includes(o.id)
+      );
+      setDisbursedOrders(disbursedHistory);
     } catch (err) {
       console.error("Admin data fetch error:", err);
     } finally {
@@ -212,6 +239,83 @@ export default function AdminDashboardPage() {
     try {
       await api.orders.update(id, { status: "UNPAID" }).catch(() => null);
       showToast("Payment Flagged & Rejected. Customer notified to upload valid mutasi receipt.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDisbursePayout = async (order: any) => {
+    setActionLoading(order.id + "_disburse");
+
+    const orderId = order.id;
+    const payoutAmount = Math.round(order.totalPrice * 0.95);
+    const modderName = order.modder?.name || "Modder";
+    const modderEmail = order.modder?.email || "Bank Account";
+    const modderId = order.modder?.id || order.modderId;
+
+    // Optimistically update UI immediately: remove from pending, add to history
+    setCompletedOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setDisbursedOrders((prev) => [
+      {
+        ...order,
+        isDisbursed: true,
+        disbursedAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+
+    // Save to switchlab_disbursed_payouts in localStorage
+    try {
+      const stored = localStorage.getItem("switchlab_disbursed_payouts");
+      const currentIds: string[] = stored ? JSON.parse(stored) : [];
+      if (!currentIds.includes(orderId)) {
+        localStorage.setItem("switchlab_disbursed_payouts", JSON.stringify([...currentIds, orderId]));
+      }
+
+      // Also mark in switchlab_orders if present
+      const storedOrders = localStorage.getItem("switchlab_orders");
+      if (storedOrders) {
+        const parsed = JSON.parse(storedOrders);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((o: any) =>
+            o.id === orderId
+              ? { ...o, isDisbursed: true, disbursedAt: new Date().toISOString() }
+              : o
+          );
+          localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {}
+
+    // Dispatch notification to Modder
+    addNotification({
+      targetRole: "MODDER",
+      targetUserId: modderId,
+      type: "PAYOUT",
+      title: "💸 Escrow Payout Disbursed to Bank!",
+      message: `Admin transferred Rp ${payoutAmount.toLocaleString()} for Order #${orderId.slice(0, 8).toUpperCase()} to your account (${modderEmail}).`,
+      orderId: orderId,
+      link: "/modder/dashboard",
+    });
+
+    // Dispatch notification to Admin
+    addNotification({
+      targetRole: "ADMIN",
+      type: "PAYOUT",
+      title: "✅ Payout Disbursal Processed",
+      message: `Transferred Rp ${payoutAmount.toLocaleString()} to @${modderName} for Order #${orderId.slice(0, 8).toUpperCase()}.`,
+      orderId: orderId,
+      link: "/admin",
+    });
+
+    try {
+      await api.orders.update(orderId, {
+        isDisbursed: true,
+        disbursedAt: new Date().toISOString(),
+      }).catch(() => null);
+
+      showToast(`Payout Disbursed! Transferred Rp ${payoutAmount.toLocaleString()} to @${modderName}.`);
     } finally {
       setActionLoading(null);
     }
@@ -458,55 +562,114 @@ export default function AdminDashboardPage() {
 
         {/* TAB 2: MODDER PAYOUT RELEASES */}
         {activeTab === "DISBURSEMENTS" && (
-          <div className="bg-brand-sidebar border-2 border-slate-900 p-6 font-mono text-xs">
-            <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain mb-4 pb-2 border-b-2 border-slate-900">
-              Completed Jobs Ready for Escrow Payout Disbursal
-            </h2>
-
-            {completedOrders.length === 0 ? (
-              <div className="text-center py-12 bg-white border-2 border-slate-300">
-                <div className="text-3xl mb-2">💰</div>
-                <h3 className="font-bold text-sm text-brand-textMain mb-1">No Payouts Currently Pending</h3>
-                <p className="text-xs font-mono text-brand-textMuted uppercase">
-                  Payouts will appear here as soon as customers test their returned keyboards and release escrow funds.
-                </p>
+          <div className="bg-brand-sidebar border-2 border-slate-900 p-6 font-mono text-xs space-y-6">
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b-2 border-slate-900 mb-4 gap-1">
+                <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain">
+                  Completed Jobs Ready for Escrow Payout Disbursal ({completedOrders.length})
+                </h2>
+                <span className="text-[10px] text-brand-textMuted uppercase">
+                  Payouts auto-unlock when customer releases escrow
+                </span>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {completedOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="border-2 border-slate-300 p-4 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
-                  >
-                    <div>
-                      <div className="font-bold text-sm text-brand-textMain">
-                        #{order.id.slice(0, 8).toUpperCase()} • @{order.modder?.name || "Modder"} ({order.modder?.locationCity})
+
+              {completedOrders.length === 0 ? (
+                <div className="text-center py-10 bg-white border-2 border-slate-300">
+                  <div className="text-3xl mb-2">💰</div>
+                  <h3 className="font-bold text-sm text-brand-textMain mb-1">No Payouts Currently Pending</h3>
+                  <p className="text-xs font-mono text-brand-textMuted uppercase">
+                    Payouts will appear here as soon as customers test their returned keyboards and release escrow funds.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {completedOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="border-2 border-slate-300 p-4 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-brand-navy transition-colors"
+                    >
+                      <div>
+                        <div className="font-bold text-sm text-brand-textMain flex items-center gap-2 flex-wrap">
+                          <span>#{order.id.slice(0, 8).toUpperCase()}</span>
+                          <span>•</span>
+                          <span>@{order.modder?.name || "Modder"} ({order.modder?.locationCity || "Studio"})</span>
+                          <span className="px-1.5 py-0.5 bg-blue-50 border border-blue-300 text-blue-700 text-[10px] font-bold">
+                            ESCROW RELEASED
+                          </span>
+                        </div>
+                        <p className="text-brand-textMuted text-xs mt-1">
+                          Customer Confirmed Receipt & Sound Test • Ready for Bank Payout
+                        </p>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          Destination: Bank Account ({order.modder?.email || "Studio Vault"})
+                        </span>
                       </div>
-                      <p className="text-brand-textMuted text-xs">
-                        Customer Confirmed Receipt & Sound Test • Released by Customer
-                      </p>
-                      <span className="text-[11px] text-slate-500">
-                        Destination: Bank Account ({order.modder?.email || "Studio Vault"})
-                      </span>
+                      <div className="text-right shrink-0 w-full sm:w-auto">
+                        <div className="text-lg font-black text-brand-navy">
+                          Rp {Math.round(order.totalPrice * 0.95).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-brand-textMuted mb-2">
+                          (Rp {order.totalPrice.toLocaleString()} - 5% platform fee)
+                        </div>
+                        <button
+                          onClick={() => handleDisbursePayout(order)}
+                          disabled={actionLoading === order.id + "_disburse"}
+                          className="w-full sm:w-auto px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {actionLoading === order.id + "_disburse" ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <span className="animate-spin inline-block font-mono">⚙️</span>
+                              <span>Disbursing...</span>
+                            </span>
+                          ) : (
+                            "Disburse Payout Now →"
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-black text-brand-navy">
-                        Rp {Math.round(order.totalPrice * 0.95).toLocaleString()}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Payout Disbursal History */}
+            {disbursedOrders.length > 0 && (
+              <div className="pt-4 border-t-2 border-slate-900">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <span>✓ Payout Disbursal History ({disbursedOrders.length})</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-mono">Recorded in Escrow Ledger</span>
+                </div>
+
+                <div className="bg-white border-2 border-slate-300 divide-y divide-slate-200">
+                  {disbursedOrders.map((dOrder) => (
+                    <div
+                      key={dOrder.id}
+                      className="p-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50"
+                    >
+                      <div>
+                        <div className="font-bold text-xs text-brand-textMain flex items-center gap-2 flex-wrap">
+                          <span>#{dOrder.id.slice(0, 8).toUpperCase()}</span>
+                          <span>•</span>
+                          <span>@{dOrder.modder?.name || "Modder"} ({dOrder.modder?.locationCity || "Studio"})</span>
+                          <span className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-400 text-emerald-700 text-[9px] font-bold">
+                            ✓ DISBURSED TO BANK
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-brand-textMuted mt-0.5">
+                          Destination: {dOrder.modder?.email || "Modder Account"} • {dOrder.disbursedAt ? new Date(dOrder.disbursedAt).toLocaleString() : "Just now"}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-brand-textMuted mb-2">
-                        (Rp {order.totalPrice.toLocaleString()} - 5% platform fee)
+                      <div className="text-right font-mono">
+                        <span className="text-xs font-bold text-emerald-700">
+                          +Rp {Math.round(dOrder.totalPrice * 0.95).toLocaleString()}
+                        </span>
+                        <div className="text-[9px] text-slate-400">Net Escrow Payout</div>
                       </div>
-                      <button
-                        onClick={() =>
-                          showToast(`Payout Disbursed! Transferred Rp ${Math.round(order.totalPrice * 0.95).toLocaleString()} to modder.`)
-                        }
-                        className="px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] active:scale-95"
-                      >
-                        Disburse Payout Now →
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>

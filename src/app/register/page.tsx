@@ -60,10 +60,49 @@ export default function RegisterPage(){
         )}
         
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {/* Role Selection Segmented Control */}
+          <div className="flex flex-col gap-1.5 w-full">
+            <label className="text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider">
+              I want to join SwitchLab as a:
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={`flex items-center justify-center gap-2 p-3 cursor-pointer text-xs font-mono font-bold uppercase tracking-wider transition-all border-2 ${
+                selectedRole === "CUSTOMER" 
+                  ? "bg-brand-lightBg border-brand-navy text-brand-navy shadow-xs" 
+                  : "bg-white border-slate-800 hover:border-brand-navy text-brand-textMuted"
+              }`}>
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="CUSTOMER" 
+                  checked={selectedRole === "CUSTOMER"}
+                  onChange={(e) => setSelectedRole(e.target.value as "CUSTOMER")}
+                  className="accent-brand-navy" 
+                />
+                Customer
+              </label>
+              <label className={`flex items-center justify-center gap-2 p-3 cursor-pointer text-xs font-mono font-bold uppercase tracking-wider transition-all border-2 ${
+                selectedRole === "MODDER" 
+                  ? "bg-amber-50 border-amber-600 text-amber-900 shadow-xs" 
+                  : "bg-white border-slate-800 hover:border-brand-navy text-brand-textMuted"
+              }`}>
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="MODDER" 
+                  checked={selectedRole === "MODDER"}
+                  onChange={(e) => setSelectedRole(e.target.value as "MODDER")}
+                  className="accent-amber-600" 
+                />
+                🛠️ Modder Studio
+              </label>
+            </div>
+          </div>
+
           <Input 
-            label="Full Name" 
+            label={selectedRole === "MODDER" ? "Modder / Studio Name" : "Full Name"} 
             type="text" 
-            placeholder="Arzaq Ajradika" 
+            placeholder={selectedRole === "MODDER" ? "e.g. Nadia Tuner" : "e.g. Arzaq Ajradika"} 
             value={name}
             onChange={(e) => setName(e.target.value)}
             required 
@@ -84,54 +123,57 @@ export default function RegisterPage(){
             onChange={(e) => setPassword(e.target.value)}
             required 
           />
-          <Input 
-            label="City / Region" 
-            type="text" 
-            placeholder="Jakarta, Bandung, Depok..." 
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            required 
-          />
-          
-          {/* Role Selection Segmented Control */}
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider">I want to join as a:</label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className={`flex items-center justify-center gap-2 p-3 cursor-pointer text-xs font-mono font-bold uppercase tracking-wider transition-all border-2 ${
-                selectedRole === "CUSTOMER" 
-                  ? "bg-brand-lightBg border-brand-navy text-brand-navy" 
-                  : "bg-white border-slate-800 hover:border-brand-navy text-brand-textMuted"
-              }`}>
-                <input 
-                  type="radio" 
-                  name="role" 
-                  value="CUSTOMER" 
-                  checked={selectedRole === "CUSTOMER"}
-                  onChange={(e) => setSelectedRole(e.target.value as "CUSTOMER")}
-                  className="accent-brand-navy" 
-                />
-                Customer
-              </label>
-              <label className={`flex items-center justify-center gap-2 p-3 cursor-pointer text-xs font-mono font-bold uppercase tracking-wider transition-all border-2 ${
+
+          {/* City / Location Input */}
+          <div className="space-y-1.5">
+            <Input 
+              label={
                 selectedRole === "MODDER" 
-                  ? "bg-brand-lightBg border-brand-navy text-brand-navy" 
-                  : "bg-white border-slate-800 hover:border-brand-navy text-brand-textMuted"
-              }`}>
-                <input 
-                  type="radio" 
-                  name="role" 
-                  value="MODDER" 
-                  checked={selectedRole === "MODDER"}
-                  onChange={(e) => setSelectedRole(e.target.value as "MODDER")}
-                  className="accent-brand-navy" 
-                />
-                Modder
-              </label>
+                  ? "📍 Studio City / Workshop Location (Directory Listing)" 
+                  : "📍 City / Region (For Shipping & Delivery)"
+              } 
+              type="text" 
+              placeholder="e.g. Bandung, Jakarta, Depok..." 
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              required 
+            />
+
+            {/* Quick Pick Location Chips */}
+            <div>
+              <div className="text-[10px] font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                Quick Select City:
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {["Jakarta", "Bandung", "Depok", "Tangerang", "Bekasi", "Surabaya", "Yogyakarta"].map((c) => {
+                  const isSelected = city.toLowerCase() === c.toLowerCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCity(c)}
+                      className={`px-2 py-0.5 text-[11px] font-mono border transition-all ${
+                        isSelected
+                          ? "bg-brand-navy text-white border-brand-navy font-bold"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-slate-800"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {selectedRole === "MODDER" && (
+              <p className="text-[11px] font-mono text-amber-900 bg-amber-50 p-2 border border-amber-300 leading-tight">
+                💡 <strong>Modders Directory:</strong> Your studio will be filtered under <em>{city || "your city"}</em> so customers in your area can discover and book walk-in tuning or local courier drop-offs.
+              </p>
+            )}
           </div>
           
           <Button type="submit" variant="primary" className="mt-4" isLoading={loading}>
-            {loading ? "Registering..." : "Register Account →"}
+            {loading ? "Registering..." : selectedRole === "MODDER" ? "Register Modder Studio →" : "Register Account →"}
           </Button>
         </form>
         

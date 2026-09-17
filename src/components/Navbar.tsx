@@ -9,6 +9,7 @@ import {
   markAllNotificationsAsRead,
   AppNotification,
 } from "@/lib/notifications";
+import { EditProfileModal } from "@/components/EditProfileModal";
 
 interface UserProfile {
   id: string;
@@ -25,6 +26,7 @@ export function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const loadNotifs = (currentUser: UserProfile | null) => {
@@ -342,10 +344,16 @@ export function Navbar() {
             {/* Auth Buttons: Toggle between Logged In Profile and Guest Log In / Sign Up */}
             {mounted && user ? (
               <div className="flex items-center gap-2">
-                <span className="h-9 px-3 bg-slate-100 border-2 border-slate-900 text-slate-800 text-xs font-mono font-bold truncate max-w-[140px] inline-flex items-center gap-1.5 box-border">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfile(true)}
+                  title="Click to Edit Profile & Studio Location"
+                  className="h-9 px-3 bg-slate-100 border-2 border-slate-900 text-slate-800 hover:bg-slate-200 hover:border-brand-navy text-xs font-mono font-bold truncate max-w-[150px] inline-flex items-center gap-1.5 box-border transition-colors cursor-pointer"
+                >
                   <span className="text-xs leading-none">👤</span>
                   <span className="truncate leading-none">{user.name}</span>
-                </span>
+                  <span className="text-[10px] leading-none text-slate-500 font-mono" title="Edit">✏️</span>
+                </button>
                 <button
                   onClick={handleLogout}
                   className="h-9 px-3 border-2 border-slate-900 bg-white text-slate-900 hover:bg-red-50 hover:border-red-600 hover:text-red-700 transition-colors text-xs font-mono font-bold uppercase inline-flex items-center justify-center box-border"
@@ -381,6 +389,15 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        onProfileUpdated={(updated) => {
+          setUser(updated);
+        }}
+      />
     </nav>
   );
 }

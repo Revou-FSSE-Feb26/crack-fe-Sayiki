@@ -115,6 +115,11 @@ export const api = {
   users: {
     getAll: () => apiFetch<any[]>('/users'),
     getById: (id: string) => apiFetch<any>(`/users/${id}`),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
   },
   listings: {
     getAll: () => apiFetch<any[]>('/listings'),

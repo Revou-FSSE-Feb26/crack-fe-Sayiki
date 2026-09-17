@@ -93,13 +93,14 @@ export default function ServiceDetailPage() {
   const calculateTotal = () => {
     if (!service) return 0;
     const isPerSwitch = service.category === "SWITCH_MODS";
-    let base = isPerSwitch ? service.basePrice * unitCount : service.basePrice;
+    const count = Math.max(1, unitCount || 1);
+    let base = isPerSwitch ? service.basePrice * count : service.basePrice;
 
     // Add selected option extra prices
     if (service.options) {
       service.options.forEach((opt) => {
         if (selectedOptionIds.includes(opt.id)) {
-          base += isPerSwitch ? opt.extraPrice * unitCount : opt.extraPrice;
+          base += isPerSwitch ? opt.extraPrice * count : opt.extraPrice;
         }
       });
     }
@@ -109,6 +110,11 @@ export default function ServiceDetailPage() {
   const handleAddToCart = () => {
     if (!service) return;
     setIsAddingToCart(true);
+
+    const safeCount = Math.max(1, unitCount || 1);
+    if (!unitCount || unitCount < 1) {
+      setUnitCount(1);
+    }
 
     const selectedOptionsList = (service.options || [])
       .filter((opt) => selectedOptionIds.includes(opt.id))
@@ -124,7 +130,7 @@ export default function ServiceDetailPage() {
       serviceId: service.id,
       modderId: service.modderId,
       title: `${service.title}${optionSummary}`,
-      variation: service.category === "SWITCH_MODS" ? `${unitCount}x Switches (${switchType})` : "Standard Keyboard Service",
+      variation: service.category === "SWITCH_MODS" ? `${safeCount}x Switches (${switchType})` : "Standard Keyboard Service",
       provider: `@${service.modder?.name || "VerifiedModder"}`,
       price: calculateTotal(),
       quantity: 1,
@@ -326,28 +332,78 @@ export default function ServiceDetailPage() {
               {/* 2. Quantity / Switch Count */}
               {isSwitchMods && (
                 <div className="mb-6 pb-6 border-b border-slate-200">
-                  <label className="block text-xs font-mono font-bold uppercase text-brand-textMain mb-2">
-                    2. Switch Quantity
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-mono font-bold uppercase text-brand-textMain">
+                      2. Switch Quantity
+                    </label>
+                    <span className="text-[11px] font-mono text-brand-textMuted">
+                      Type exact amount or adjust:
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => setUnitCount(Math.max(10, unitCount - 10))}
-                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-sm flex items-center justify-center hover:bg-brand-navy hover:text-white"
+                      onClick={() => setUnitCount((prev) => Math.max(1, (prev || 1) - 1))}
+                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-base flex items-center justify-center hover:bg-brand-navy hover:text-white transition-colors"
+                      title="Decrease by 1"
                     >
                       -
                     </button>
-                    <span className="font-mono font-black text-xl px-4">{unitCount}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={unitCount === 0 ? "" : unitCount}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : parseInt(e.target.value, 10);
+                        if (!isNaN(val)) {
+                          setUnitCount(Math.max(0, val));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!unitCount || unitCount < 1) {
+                          setUnitCount(1);
+                        }
+                      }}
+                      className="w-20 h-9 text-center font-mono font-black text-lg border-2 border-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                      aria-label="Switch Quantity"
+                    />
                     <button
                       type="button"
-                      onClick={() => setUnitCount(unitCount + 10)}
-                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-sm flex items-center justify-center hover:bg-brand-navy hover:text-white"
+                      onClick={() => setUnitCount((prev) => (prev || 0) + 1)}
+                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-base flex items-center justify-center hover:bg-brand-navy hover:text-white transition-colors"
+                      title="Increase by 1"
                     >
                       +
                     </button>
                     <span className="text-xs font-mono text-brand-textMuted ml-auto">
-                      Subtotal: Rp {(service.basePrice * unitCount).toLocaleString()}
+                      Subtotal: Rp {(service.basePrice * Math.max(1, unitCount || 1)).toLocaleString()}
                     </span>
+                  </div>
+
+                  {/* Preset quick layout buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                    <span className="text-[10px] font-mono uppercase text-brand-textMuted mr-1">Presets:</span>
+                    {[
+                      { label: "60% (61)", count: 61 },
+                      { label: "65% (67)", count: 67 },
+                      { label: "75% (84)", count: 84 },
+                      { label: "TKL (87)", count: 87 },
+                      { label: "Full (104)", count: 104 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.count}
+                        type="button"
+                        onClick={() => setUnitCount(preset.count)}
+                        className={`px-2 py-0.5 text-[11px] font-mono border transition-all ${
+                          unitCount === preset.count
+                            ? "bg-brand-navy text-white border-brand-navy font-bold shadow-sm"
+                            : "bg-white text-slate-700 border-slate-300 hover:border-slate-800"
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

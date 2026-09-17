@@ -427,49 +427,68 @@ export default function ProfilePage() {
             {/* Modder Studio Verification Section */}
             {isModder && (
               !currentUser.isVerified ? (
-                <div id="verify-studio" className="bg-white border-2 border-amber-500 p-6 md:p-8 shadow-xs">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-2 border-slate-900 pb-4 mb-5">
+                <div id="verify-studio" className="bg-white border-2 border-slate-900 p-6 md:p-8 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b-2 border-slate-900 pb-4 mb-5">
                     <div>
-                      <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border border-amber-600 bg-amber-50 text-amber-900 mb-1.5">
-                        [ 🛡️ STUDIO IDENTITY & BADGE VERIFICATION ]
-                      </span>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border border-amber-600 bg-amber-50 text-amber-900">
+                          [ 🛡️ STUDIO IDENTITY & BADGE VERIFICATION ]
+                        </span>
+                      </div>
                       <h3 className="text-xl font-black text-brand-textMain">
                         Get Your Verified Modder Studio Badge
                       </h3>
-                      <p className="text-xs text-brand-textMuted uppercase tracking-wider mt-0.5">
+                      <p className="text-xs text-brand-textMuted uppercase tracking-wider mt-1">
                         Verify your studio to unlock the official Verified badge, increase customer bookings, and gain Escrow trust.
                       </p>
                     </div>
-                    <span className="px-3 py-1 text-xs font-bold font-mono bg-amber-100 text-amber-900 border border-amber-400 uppercase shrink-0">
-                      Status: Unverified
-                    </span>
+                    <div className="shrink-0 sm:pt-1">
+                      <span className="inline-block px-3 py-1 text-xs font-bold font-mono bg-amber-100 text-amber-900 border-2 border-amber-500 uppercase tracking-wider shadow-xs">
+                        STATUS: UNVERIFIED
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mb-6 text-xs font-mono">
-                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
-                      <div className="font-bold text-slate-900 mb-1">🏷️ Verified Badge</div>
-                      <p className="text-slate-600 text-[11px] leading-relaxed">
-                        Unlocks the official [ 🛠️ VERIFIED MODDER STUDIO ] badge on all your listings and studio profile.
-                      </p>
+                    <div className="p-3.5 bg-brand-lightBg border-2 border-slate-300 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                          <span>🏷️</span>
+                          <span>Verified Badge</span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-relaxed">
+                          Unlocks the official [ 🛠️ VERIFIED MODDER STUDIO ] badge on all your listings and studio profile.
+                        </p>
+                      </div>
                     </div>
-                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
-                      <div className="font-bold text-slate-900 mb-1">🔍 Directory Priority</div>
-                      <p className="text-slate-600 text-[11px] leading-relaxed">
-                        Appears with verified checkmark in the Modders Directory and local city drop-off filters.
-                      </p>
+                    <div className="p-3.5 bg-brand-lightBg border-2 border-slate-300 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                          <span>🔍</span>
+                          <span>Directory Priority</span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-relaxed">
+                          Appears with verified checkmark in the Modders Directory and local city drop-off filters.
+                        </p>
+                      </div>
                     </div>
-                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
-                      <div className="font-bold text-slate-900 mb-1">🛡️ Escrow Trust</div>
-                      <p className="text-slate-600 text-[11px] leading-relaxed">
-                        Instant eligibility for vault disbursements once customer confirms build quality.
-                      </p>
+                    <div className="p-3.5 bg-brand-lightBg border-2 border-slate-300 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                          <span>🛡️</span>
+                          <span>Escrow Trust</span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-relaxed">
+                          Instant eligibility for vault disbursements once customer confirms build quality.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-4 pt-1">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                      <div className="flex flex-col justify-end">
+                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-2 h-5 leading-5 truncate">
                           Studio Portfolio / Sound Test URL (Optional)
                         </label>
                         <input
@@ -477,17 +496,17 @@ export default function ProfilePage() {
                           placeholder="e.g. instagram.com/arzaq.mods or youtube.com/@mods"
                           value={portfolioUrl}
                           onChange={(e) => setPortfolioUrl(e.target.value)}
-                          className="w-full px-3.5 py-2.5 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg"
+                          className="w-full h-11 px-3.5 border-2 border-slate-900 text-xs font-mono bg-brand-lightBg focus:outline-none focus:ring-1 focus:ring-brand-navy"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
+                      <div className="flex flex-col justify-end">
+                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-2 h-5 leading-5 truncate">
                           Primary Modding Specialization
                         </label>
                         <select
                           value={modSpecialty}
                           onChange={(e) => setModSpecialty(e.target.value)}
-                          className="w-full px-3.5 py-2.5 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg"
+                          className="w-full h-11 px-3.5 border-2 border-slate-900 text-xs font-mono bg-brand-lightBg focus:outline-none focus:ring-1 focus:ring-brand-navy"
                         >
                           <option value="SWITCH_LUBE_FILM">Switch Lubing & Filming (Krytox 205g0 / Tribosys)</option>
                           <option value="STABILIZER_TUNING">Stabilizer Tuning (PCB Clip-in / Screw-in / Holee Mod)</option>
@@ -497,15 +516,15 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
-                      <p className="text-[11px] text-slate-500 font-mono">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-5 border-t border-slate-200">
+                      <p className="text-xs text-slate-600 font-mono max-w-md leading-relaxed">
                         Click below to verify your studio credentials and immediately activate your verified status in database.
                       </p>
                       <button
                         type="button"
                         disabled={verifying}
                         onClick={handleVerifyStudio}
-                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase tracking-wider border-2 border-slate-900 flex items-center gap-2 shrink-0 cursor-pointer shadow-xs transition-colors"
+                        className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase tracking-wider border-2 border-slate-900 inline-flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-xs transition-colors"
                       >
                         {verifying ? "Verifying..." : "⚡ Verify Modder Studio Now"}
                       </button>
@@ -514,7 +533,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div id="verify-studio" className="bg-emerald-50/60 border-2 border-emerald-600 p-6 md:p-8 shadow-xs">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border border-emerald-700 bg-emerald-100 text-emerald-900">

@@ -18,6 +18,21 @@ export default function OrderDetailPage() {
   const [escrowReleased, setEscrowReleased] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Review states
+  const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  useEffect(() => {
+    if (order?.review) {
+      setRating(order.review.rating || 5);
+      setReviewComment(order.review.comment || "");
+    }
+  }, [order?.review]);
+
   useEffect(() => {
     async function fetchOrder() {
       if (!orderId) return;
@@ -77,9 +92,12 @@ export default function OrderDetailPage() {
             inboundTrackingNum: dbOrder.inboundTrackingNum,
             outboundTrackingNum: dbOrder.outboundTrackingNum,
             modder: `@${dbOrder.modder?.name || "Modder"}`,
+            modderId: dbOrder.modderId || dbOrder.modder?.id,
+            customerId: dbOrder.customerId || dbOrder.customer?.id,
             service: dbOrder.items?.[0]?.service?.title || dbOrder.keyboardModel || "Keyboard Modding Service",
             status: dbOrder.status,
             items: dbOrder.items,
+            review: dbOrder.review || localOrder?.review || null,
           });
 
           if (dbOrder.inboundTrackingNum) setInboundTracking(dbOrder.inboundTrackingNum);
@@ -129,6 +147,7 @@ export default function OrderDetailPage() {
             ...localOrder,
             subtotal: sub,
             shippingFee: shipFee,
+            review: localOrder.review || null,
           });
           if (localOrder.inboundTrackingNum) setInboundTracking(localOrder.inboundTrackingNum);
           if (localOrder.outboundTrackingNum) setOutboundTracking(localOrder.outboundTrackingNum);
@@ -222,6 +241,65 @@ export default function OrderDetailPage() {
       console.warn("Could not update order status in backend:", err);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderId || !rating) return;
+    setIsSubmittingReview(true);
+    try {
+      let savedReview: any = null;
+      try {
+        savedReview = await api.orders.addReview(orderId, {
+          rating,
+          comment: reviewComment.trim() || "Awesome modding job, highly recommended!",
+          customerId: order?.customerId,
+        });
+      } catch (err) {
+        console.warn("Could not save review via backend API:", err);
+      }
+
+      const reviewData = savedReview || {
+        rating,
+        comment: reviewComment.trim() || "Awesome modding job, highly recommended!",
+        createdAt: new Date().toISOString(),
+      };
+
+      setOrder((prev: any) => (prev ? { ...prev, review: reviewData } : null));
+      setIsEditingReview(false);
+      setReviewSuccess(true);
+      setTimeout(() => setReviewSuccess(false), 4000);
+
+      // Save to localStorage
+      try {
+        const stored = localStorage.getItem("switchlab_orders");
+        if (stored) {
+          const list = JSON.parse(stored);
+          if (Array.isArray(list)) {
+            const updated = list.map((o: any) =>
+              o.id === orderId ? { ...o, review: reviewData } : o
+            );
+            localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+            window.dispatchEvent(new Event("storage"));
+          }
+        }
+      } catch (e) {}
+
+      // Dispatch Notification to Modder
+      addNotification({
+        targetRole: "MODDER",
+        targetUserId: order?.modderId || order?.modder?.id,
+        type: "ORDER",
+        title: `⭐ New ★${rating}.0 Review from Customer!`,
+        message: `Customer reviewed your build for Order #${orderId}: "${reviewComment.trim() || "Awesome modding job!"}"`,
+        orderId: orderId,
+        link: "/modder/dashboard",
+      });
+    } catch (err: any) {
+      console.error("Error submitting review:", err);
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -609,6 +687,135 @@ export default function OrderDetailPage() {
                 </Button>
               )}
             </div>
+
+            {/* Customer Rating & Review Card */}
+            {isCompleted && (
+              <div id="rate-modder" className="bg-brand-sidebar border-2 border-slate-900 p-6 shadow-xs">
+                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                  <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain flex items-center gap-1.5">
+                    <span>⭐</span>
+                    <span>Rate & Review Your Modder</span>
+                  </h3>
+                  {order?.review && !isEditingReview && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingReview(true)}
+                      className="text-[11px] font-mono font-bold text-brand-navy hover:underline uppercase cursor-pointer"
+                    >
+                      ✏️ Edit Review
+                    </button>
+                  )}
+                </div>
+
+                {reviewSuccess && (
+                  <div className="p-3 bg-emerald-50 border-2 border-emerald-600 text-emerald-900 text-xs font-mono font-bold mb-4">
+                    ✓ Review submitted successfully! Thank you for supporting community modders.
+                  </div>
+                )}
+
+                {order?.review && !isEditingReview ? (
+                  <div className="bg-white border-2 border-slate-900 p-4 space-y-3 font-mono">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span
+                            key={star}
+                            className={`text-base ${star <= (order.review.rating || 5) ? "text-amber-500" : "text-slate-300"}`}
+                          >
+                            ★
+                          </span>
+                        ))}
+                        <span className="text-xs font-bold text-slate-800 ml-1.5">
+                          {order.review.rating}.0 / 5.0
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-600 text-emerald-800 text-[10px] font-bold uppercase">
+                        ✓ Verified Purchase Review
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-700 leading-relaxed bg-brand-lightBg p-3 border border-slate-300 italic">
+                      &ldquo;{order.review.comment}&rdquo;
+                    </p>
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Reviewed for: {order.modder || "@VerifiedModder"}</span>
+                      <span>{order.review.createdAt ? new Date(order.review.createdAt).toLocaleDateString() : "Just now"}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitReview} className="space-y-4 font-mono">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-2">
+                        How would you rate {order?.modder || "the modder"}&apos;s craftsmanship?
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const active = (hoverRating || rating) >= star;
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setRating(star)}
+                              onMouseEnter={() => setHoverRating(star)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              className={`text-2xl transition-transform hover:scale-125 focus:outline-none cursor-pointer ${
+                                active ? "text-amber-500" : "text-slate-300"
+                              }`}
+                            >
+                              ★
+                            </button>
+                          );
+                        })}
+                        <span className="text-xs font-bold text-brand-navy ml-2">
+                          {rating === 5 && "5.0 - Masterpiece! Smooth & Clacky/Thocky 🔥"}
+                          {rating === 4 && "4.0 - Great Build & Acoustic Feel 👍"}
+                          {rating === 3 && "3.0 - Satisfactory Mod 👌"}
+                          {rating === 2 && "2.0 - Some Stem/Stabilizer Rattle ⚠️"}
+                          {rating === 1 && "1.0 - Poor Execution ❌"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
+                        Your Feedback / Sound & Feel Impressions:
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="Tell the community about switch smoothness, stabilizer balance, acoustics, and the modder's communication..."
+                        className="w-full p-3 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg focus:outline-none focus:ring-1 focus:ring-brand-navy"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      {isEditingReview ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingReview(false)}
+                          className="px-4 py-2 border-2 border-slate-400 text-slate-700 text-xs font-bold uppercase hover:bg-slate-100 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500">
+                          Your review directly boosts the modder&apos;s public studio score.
+                        </span>
+                      )}
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isLoading={isSubmittingReview}
+                        className="text-xs px-6 py-2.5"
+                      >
+                        {isSubmittingReview ? "Submitting..." : isEditingReview ? "Update Review →" : "Submit Modder Review →"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

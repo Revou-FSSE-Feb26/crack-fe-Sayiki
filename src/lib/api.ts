@@ -142,6 +142,11 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    addReview: (id: string, data: { rating: number; comment: string; customerId?: string }) =>
+      apiFetch<any>(`/orders/${id}/review`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
   users: {
     getAll: () => apiFetch<any[]>('/users'),

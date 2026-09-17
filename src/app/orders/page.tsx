@@ -14,6 +14,7 @@ interface OrderSummary {
   status: "PAID_WAITING_MODDER" | "CUSTOMER_SENDING_KEYBOARD" | "KEYBOARD_IN_MODDER_HAND" | "SHIPPED_BACK" | "SUCCESS" | string;
   statusLabel: string;
   badgeClass: string;
+  review?: any;
 }
 
 export default function OrdersPage() {
@@ -85,6 +86,7 @@ export default function OrdersPage() {
             : b.status === "SHIPPED_BACK"
             ? "bg-emerald-100 text-emerald-900 border-emerald-600 font-black"
             : "bg-blue-50 text-blue-700 border-blue-600",
+          review: b.review || null,
         }));
 
         // Start with live DB orders as the primary source of truth
@@ -119,6 +121,7 @@ export default function OrdersPage() {
                   : loc.status === "SHIPPED_BACK"
                   ? "bg-emerald-100 text-emerald-900 border-emerald-600 font-black"
                   : "bg-blue-50 text-blue-700 border-blue-600",
+                review: loc.review || null,
               });
             } else {
               // Live DB order exists: sync the live status into the local copy
@@ -197,15 +200,24 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <Link href={`/orders/${order.id}`} className="w-full sm:w-auto">
-          <Button
-            variant={isCompleted ? "secondary" : "primary"}
-            isLoading={false}
-            className="whitespace-nowrap px-5"
-          >
-            {isCompleted ? "View Escrow Receipt →" : "View Live Tracker →"}
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          {isCompleted && (
+            <Link href={`/orders/${order.id}#rate-modder`} className="w-full sm:w-auto">
+              <span className="h-9 px-3 border-2 border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-950 font-mono text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shadow-xs transition-colors">
+                ⭐ {order.review ? `★${order.review.rating}.0 Rated` : "Rate Modder"}
+              </span>
+            </Link>
+          )}
+          <Link href={`/orders/${order.id}`} className="w-full sm:w-auto">
+            <Button
+              variant={isCompleted ? "secondary" : "primary"}
+              isLoading={false}
+              className="whitespace-nowrap px-5"
+            >
+              {isCompleted ? "View Escrow Receipt →" : "View Live Tracker →"}
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

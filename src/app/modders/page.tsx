@@ -333,7 +333,7 @@ function ModderCard({ modder }: { modder: any }) {
   return (
     <div className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-xl transition-all group hover:border-brand-navy flex flex-col justify-between h-full">
       {/* Top Status Strip */}
-      <div className="h-11 px-4 border-b border-slate-200 bg-brand-lightBg flex items-center justify-between">
+      <div className="h-11 px-4 border-b border-slate-200 bg-brand-lightBg flex items-center">
         {modder.status === 'accepting' ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 whitespace-nowrap">
             <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse inline-block"></span>
@@ -350,9 +350,6 @@ function ModderCard({ modder }: { modder: any }) {
             ON BREAK
           </span>
         )}
-        <span className="text-[10px] font-mono text-brand-textMuted uppercase tracking-wider font-semibold">
-          MODDER #{modder.id}
-        </span>
       </div>
 
       {/* Main Info */}

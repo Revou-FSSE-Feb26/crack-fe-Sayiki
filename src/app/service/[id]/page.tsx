@@ -1,243 +1,424 @@
 "use client";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/Button";
-import { useState } from "react";
+import { api } from "@/lib/api";
 
-// Sample service data
-const serviceData = {
-  id: 1,
-  type: 'service',
-  title: 'Linear Switch Lubing & Filming',
-  provider: '@DexterKeyboards',
-  rating: 4.9,
-  reviewCount: 127,
-  badge: 'SERVICE',
-  basePrice: 3500,
-  priceUnit: 'per switch',
-  image: '/images/lubing-swtiches.webp',
-  gallery: [
-    '/images/lubing-swtiches.webp',
-    '/images/switches.jpg',
-    '/images/stabs.webp'
-  ],
-  description: 'Professional switch lubing and filming service using premium lubricants. Each switch is hand-lubed for optimal smoothness and consistency.',
-  modderProfile: {
-    name: 'DexterKeyboards',
-    location: 'Jakarta Selatan',
-    specialty: 'Linear Switch Specialist',
-    completedJobs: 127,
-    equipment: ['Krytox 205g0', 'Tribosys 3203', 'Kelowna switch openers']
-  },
-  process: [
-    'Book & Pay (Held in Escrow)',
-    'Ship your board/parts to the modder',
-    'Modder works & sends sound test',
-    'Shipped back & funds released'
-  ]
+interface ServiceOption {
+  id: string;
+  optionName: string;
+  optionType: string;
+  extraPrice: number;
+}
+
+interface ServiceDetail {
+  id: string;
+  modderId: string;
+  title: string;
+  description: string;
+  basePrice: number;
+  category: string;
+  modder?: {
+    id: string;
+    name: string;
+    email: string;
+    locationCity: string;
+    avgRating: number;
+  };
+  options?: ServiceOption[];
+}
+
+const getCategoryFallbackImage = (category?: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "/images/lubing-swtiches.webp";
+    case "STABILIZER_MODS":
+      return "/images/stabs.webp";
+    case "CASE_AND_ACOUSTIC":
+      return "/images/foam.jpg";
+    case "CUSTOMIZATION_AESTHETICS":
+    default:
+      return "/images/repair-kb.png";
+  }
 };
 
 export default function ServiceDetailPage() {
-  const [switchType, setSwitchType] = useState('linear');
-  const [switchCount, setSwitchCount] = useState(70);
-  const [addFilms, setAddFilms] = useState(false);
-  const [tuneStabs, setTuneStabs] = useState(false);
+  const params = useParams();
+  const router = useRouter();
+  const serviceId = params?.id as string;
+
+  const [service, setService] = useState<ServiceDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Booking options state
+  const [switchType, setSwitchType] = useState("linear");
+  const [unitCount, setUnitCount] = useState(70);
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  useEffect(() => {
+    async function loadService() {
+      if (!serviceId) return;
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await api.listings.getById(serviceId);
+        if (data) {
+          setService(data);
+          // Default select the first option if available
+          if (data.options && data.options.length > 0) {
+            setSelectedOptionIds([data.options[0].id]);
+          }
+        } else {
+          setError("Service not found in database.");
+        }
+      } catch (err: any) {
+        console.error("Failed to load service detail:", err);
+        setError("Could not load service details from backend.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadService();
+  }, [serviceId]);
+
+  const toggleOption = (id: string) => {
+    setSelectedOptionIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   const calculateTotal = () => {
-    let total = serviceData.basePrice * switchCount;
-    if (addFilms) total += 1000 * switchCount; // +Rp 1,000 per switch for films
-    if (tuneStabs) total += 50000; // +Rp 50,000 flat for stab tuning
-    return total;
+    if (!service) return 0;
+    const isPerSwitch = service.category === "SWITCH_MODS";
+    let base = isPerSwitch ? service.basePrice * unitCount : service.basePrice;
+
+    // Add selected option extra prices
+    if (service.options) {
+      service.options.forEach((opt) => {
+        if (selectedOptionIds.includes(opt.id)) {
+          base += isPerSwitch ? opt.extraPrice * unitCount : opt.extraPrice;
+        }
+      });
+    }
+    return base;
   };
+
+  const handleAddToCart = () => {
+    if (!service) return;
+    setIsAddingToCart(true);
+
+    const selectedOptionsList = (service.options || [])
+      .filter((opt) => selectedOptionIds.includes(opt.id))
+      .map((opt) => opt.optionName);
+
+    const optionSummary = selectedOptionsList.length > 0
+      ? ` + ${selectedOptionsList.join(", ")}`
+      : "";
+
+    const cartItem = {
+      id: Date.now(),
+      type: "service",
+      title: `${service.title}${optionSummary}`,
+      variation: service.category === "SWITCH_MODS" ? `${unitCount}x Switches (${switchType})` : "Standard Keyboard Service",
+      provider: `@${service.modder?.name || "VerifiedModder"}`,
+      price: calculateTotal(),
+      quantity: 1,
+      image: getCategoryFallbackImage(service.category),
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem("switchlab_cart") || "[]");
+      const updated = Array.isArray(existing) ? [...existing, cartItem] : [cartItem];
+      localStorage.setItem("switchlab_cart", JSON.stringify(updated));
+      window.dispatchEvent(new Event("cart_updated"));
+    } catch (e) {
+      console.error(e);
+    }
+
+    setTimeout(() => {
+      router.push("/cart");
+    }, 400);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-8">
+        <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center max-w-md w-full">
+          <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
+          <h2 className="text-base font-mono font-bold text-brand-textMain uppercase">
+            Loading Service Specification...
+          </h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !service) {
+    return (
+      <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-8">
+        <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center max-w-md w-full">
+          <div className="text-3xl mb-3">⚠️</div>
+          <h2 className="text-lg font-bold text-brand-textMain mb-2">Service Not Found</h2>
+          <p className="text-xs font-mono text-brand-textMuted uppercase mb-6">
+            {error || "The requested service does not exist in the database."}
+          </p>
+          <Link href="/services">
+            <Button variant="primary" isLoading={false}>
+              ← Back to Services Catalog
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isSwitchMods = service.category === "SWITCH_MODS";
 
   return (
     <div className="min-h-screen bg-brand-lightBg">
       {/* Breadcrumbs */}
-      <div className="bg-brand-sidebar border-b border-brand-border">
+      <div className="bg-brand-sidebar border-b-2 border-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="text-sm text-brand-textMuted flex items-center gap-2">
-            <a href="/" className="hover:text-brand-navy">Home</a>
-            <span>&gt;</span>
-            <a href="#" className="hover:text-brand-navy">{serviceData.provider}</a>
-            <span>&gt;</span>
-            <span className="text-brand-textMain">{serviceData.title}</span>
+          <nav className="text-xs font-mono text-brand-textMuted flex items-center gap-2 uppercase">
+            <Link href="/" className="hover:text-brand-navy font-bold">Home</Link>
+            <span>/</span>
+            <Link href="/services" className="hover:text-brand-navy font-bold">Services</Link>
+            <span>/</span>
+            <span className="text-brand-textMain font-bold">@{service.modder?.name || "Modder"}</span>
+            <span>/</span>
+            <span className="text-brand-navy font-extrabold">{service.title}</span>
           </nav>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          
-          {/* LEFT COLUMN (60% width) - Visuals and Information */}
-          <div className="lg:col-span-3 space-y-6">
-            
-            {/* Main Image Gallery */}
-            <div className="bg-brand-sidebar rounded-lg overflow-hidden border border-brand-border">
-              <img 
-                src={serviceData.image} 
-                alt={serviceData.title}
-                className="w-full h-80 object-cover"
-              />
-              <div className="p-4">
-                <div className="flex gap-2">
-                  {serviceData.gallery.map((img, index) => (
-                    <img 
-                      key={index}
-                      src={img} 
-                      alt={`Gallery ${index + 1}`}
-                      className="w-20 h-20 object-cover rounded border border-brand-border cursor-pointer hover:border-brand-navy"
-                    />
-                  ))}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* LEFT COLUMN (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Main Visual Card */}
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-6">
+              <div className="h-80 bg-brand-lightBg overflow-hidden border-2 border-slate-800 mb-6">
+                <img
+                  src={getCategoryFallbackImage(service.category)}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                />
               </div>
-            </div>
 
-            {/* Title & Badges */}
-            <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
-                  [ {serviceData.badge} ]
+                  [ {service.category.replace(/_/g, " ")} ]
                 </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-yellow-400">★</span>
-                  <span className="font-medium">{serviceData.rating}</span>
-                  <span className="text-brand-textMuted">({serviceData.reviewCount} reviews)</span>
+                <div className="flex items-center gap-1 font-mono text-xs">
+                  <span className="text-yellow-500 font-bold">★</span>
+                  <span className="font-bold text-slate-900">{service.modder?.avgRating || 4.9}</span>
+                  <span className="text-brand-textMuted">(Verified Rating)</span>
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-brand-textMain">{serviceData.title}</h1>
-              <p className="text-lg text-brand-textMuted mt-2">{serviceData.description}</p>
-            </div>
 
-            {/* Modder Profile Card */}
-            <div className="bg-brand-sidebar rounded-lg border border-brand-border p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-brand-navy rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">{serviceData.modderProfile.name.charAt(1)}</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-brand-textMain">{serviceData.modderProfile.name}</h3>
-                  <p className="text-brand-textMuted">{serviceData.modderProfile.location}</p>
-                  <p className="text-brand-terracotta text-sm">{serviceData.modderProfile.specialty}</p>
-                </div>
-                <Button variant="secondary" isLoading={false} className="ml-auto">
-                  Chat with Modder
-                </Button>
-              </div>
-              <p className="text-sm text-brand-textMuted mb-2">
-                <strong>Equipment:</strong> {serviceData.modderProfile.equipment.join(', ')}
+              <h1 className="text-2xl md:text-3xl font-black text-brand-textMain mb-3">
+                {service.title}
+              </h1>
+              <p className="text-sm font-mono text-brand-textMuted uppercase leading-relaxed">
+                {service.description}
               </p>
             </div>
 
-            {/* Process Accordion */}
-            <div className="bg-brand-sidebar rounded-lg border border-brand-border p-6">
-              <h3 className="font-semibold text-brand-textMain mb-4">How the Process Works</h3>
-              <div className="space-y-3">
-                {serviceData.process.map((step, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-brand-navy text-white rounded-full flex items-center justify-center text-sm font-bold">
-                      {index + 1}
-                    </div>
-                    <span className="text-brand-textMain">{step}</span>
+            {/* Modder Profile Card */}
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-6">
+              <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain mb-4 pb-2 border-b-2 border-slate-900">
+                Assigned Verified Modder
+              </h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-brand-navy border-2 border-slate-900 flex items-center justify-center text-white font-mono font-black text-xl">
+                    {service.modder?.name?.charAt(0) || "M"}
                   </div>
-                ))}
+                  <div>
+                    <h4 className="font-bold text-base text-brand-textMain">
+                      @{service.modder?.name || "Modder"}
+                    </h4>
+                    <p className="text-xs font-mono text-brand-textMuted">
+                      📍 Location: {service.modder?.locationCity || "Indonesia"}
+                    </p>
+                    <span className="inline-block mt-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 bg-green-50 border border-green-600 text-green-700">
+                      ✓ KTP Verified Studio
+                    </span>
+                  </div>
+                </div>
+                <Link href="/modders">
+                  <Button variant="secondary" isLoading={false} className="text-xs">
+                    View Modder Studio
+                  </Button>
+                </Link>
               </div>
             </div>
 
-            {/* Reviews & Portfolio */}
-            <div className="bg-brand-sidebar rounded-lg border border-brand-border p-6">
-              <h3 className="font-semibold text-brand-textMain mb-4">Recent Work & Reviews</h3>
-              <p className="text-brand-textMuted">Portfolio shots and customer reviews would go here...</p>
+            {/* Escrow Workflow Explanation */}
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-6">
+              <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain mb-4 pb-2 border-b-2 border-slate-900">
+                SwitchLab Escrow Protection Protocol
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs font-mono">
+                <div className="p-3 border-2 border-slate-300 bg-brand-lightBg">
+                  <span className="font-bold block text-brand-navy mb-1">01. VAULT LOCK</span>
+                  Funds held safely in SwitchLab escrow account.
+                </div>
+                <div className="p-3 border-2 border-slate-300 bg-brand-lightBg">
+                  <span className="font-bold block text-brand-navy mb-1">02. SEND PARTS</span>
+                  Ship your switches or keyboard to modder studio.
+                </div>
+                <div className="p-3 border-2 border-slate-300 bg-brand-lightBg">
+                  <span className="font-bold block text-brand-navy mb-1">03. SOUND TEST</span>
+                  Modder uploads audio clip of completed mod.
+                </div>
+                <div className="p-3 border-2 border-slate-300 bg-brand-lightBg">
+                  <span className="font-bold block text-brand-navy mb-1">04. RELEASE</span>
+                  Confirm feel & sound to release funds.
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN (40% width) - Interactive Booking/Purchase Panel */}
-          <div className="lg:col-span-2">
-            <div>
-              <div className="bg-brand-sidebar border-2 border-slate-900 p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-brand-textMain mb-1">SERVICE BOOKING</h2>
-                <p className="text-brand-textMuted mb-6">Base Price: Rp {serviceData.basePrice.toLocaleString()} / switch</p>
-                
-                {/* 1. Select Switch Type */}
-                <div className="mb-6">
-                  <label className="block font-medium text-brand-textMain mb-3">1. Select Switch Type</label>
-                  <div className="flex gap-3">
-                    {['linear', 'tactile', 'clicky'].map((type) => (
-                      <label key={type} className="flex items-center">
-                        <input
-                          type="radio"
-                          name="switchType"
-                          value={type}
-                          checked={switchType === type}
-                          onChange={(e) => setSwitchType(e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="capitalize">{type}</span>
-                      </label>
+          {/* RIGHT COLUMN (5 cols) - Interactive Booking / Cart Panel */}
+          <div className="lg:col-span-5">
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-6 sticky top-6 shadow-md">
+              <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-amber-600 bg-amber-50 text-amber-800 mb-2">
+                [ ESCROW BOOKING CONFIGURATOR ]
+              </span>
+              <h2 className="text-xl font-black text-brand-textMain mb-1">
+                Configure Order
+              </h2>
+              <p className="text-xs font-mono text-brand-textMuted uppercase mb-6">
+                Base Price: Rp {service.basePrice.toLocaleString()} {isSwitchMods ? "/ switch" : "/ board"}
+              </p>
+
+              {/* 1. Switch Type (if switch mods) */}
+              {isSwitchMods && (
+                <div className="mb-6 pb-6 border-b border-slate-200">
+                  <label className="block text-xs font-mono font-bold uppercase text-brand-textMain mb-2">
+                    1. Switch Variety
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["linear", "tactile", "clicky"].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setSwitchType(type)}
+                        className={`p-2 font-mono text-xs font-bold uppercase border-2 transition-all ${
+                          switchType === type
+                            ? "bg-brand-navy text-white border-brand-navy"
+                            : "bg-white text-slate-800 border-slate-300 hover:border-slate-800"
+                        }`}
+                      >
+                        {type}
+                      </button>
                     ))}
                   </div>
                 </div>
+              )}
 
-                {/* 2. Number of Switches */}
-                <div className="mb-6">
-                  <label className="block font-medium text-brand-textMain mb-3">2. Number of Switches</label>
+              {/* 2. Quantity / Switch Count */}
+              {isSwitchMods && (
+                <div className="mb-6 pb-6 border-b border-slate-200">
+                  <label className="block text-xs font-mono font-bold uppercase text-brand-textMain mb-2">
+                    2. Switch Quantity
+                  </label>
                   <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => setSwitchCount(Math.max(1, switchCount - 1))}
-                      className="w-8 h-8 bg-brand-border rounded flex items-center justify-center text-brand-textMain hover:bg-brand-navy hover:text-white"
+                    <button
+                      type="button"
+                      onClick={() => setUnitCount(Math.max(10, unitCount - 10))}
+                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-sm flex items-center justify-center hover:bg-brand-navy hover:text-white"
                     >
                       -
                     </button>
-                    <span className="font-bold text-lg">{switchCount}</span>
-                    <button 
-                      onClick={() => setSwitchCount(switchCount + 1)}
-                      className="w-8 h-8 bg-brand-border rounded flex items-center justify-center text-brand-textMain hover:bg-brand-navy hover:text-white"
+                    <span className="font-mono font-black text-xl px-4">{unitCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setUnitCount(unitCount + 10)}
+                      className="w-9 h-9 bg-brand-lightBg border-2 border-slate-900 font-mono font-black text-sm flex items-center justify-center hover:bg-brand-navy hover:text-white"
                     >
                       +
                     </button>
-                    <span className="text-brand-textMuted ml-2">(Total Base: Rp {(serviceData.basePrice * switchCount).toLocaleString()})</span>
+                    <span className="text-xs font-mono text-brand-textMuted ml-auto">
+                      Subtotal: Rp {(service.basePrice * unitCount).toLocaleString()}
+                    </span>
                   </div>
                 </div>
+              )}
 
-                {/* 3. Add-ons */}
-                <div className="mb-6">
-                  <label className="block font-medium text-brand-textMain mb-3">3. Add-ons (Optional)</label>
+              {/* 3. Real Database Options */}
+              {service.options && service.options.length > 0 && (
+                <div className="mb-6 pb-6 border-b border-slate-200">
+                  <label className="block text-xs font-mono font-bold uppercase text-brand-textMain mb-3">
+                    {isSwitchMods ? "3" : "1"}. Available Add-Ons & Materials
+                  </label>
                   <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={addFilms}
-                        onChange={(e) => setAddFilms(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span>Add Switch Films (+Rp 1,000/pc)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={tuneStabs}
-                        onChange={(e) => setTuneStabs(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span>Tune Stabilizers (+Rp 50,000 flat)</span>
-                    </label>
+                    {service.options.map((opt) => {
+                      const checked = selectedOptionIds.includes(opt.id);
+                      return (
+                        <label
+                          key={opt.id}
+                          className={`flex items-center justify-between p-3 border-2 cursor-pointer transition-all ${
+                            checked
+                              ? "bg-blue-50 border-brand-navy text-brand-navy"
+                              : "bg-white border-slate-300 text-slate-800 hover:border-slate-600"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleOption(opt.id)}
+                              className="w-4 h-4 text-brand-navy rounded border-slate-400"
+                            />
+                            <span className="font-mono text-xs font-bold">{opt.optionName}</span>
+                            <span className="text-[10px] font-mono text-slate-500 uppercase">
+                              [{opt.optionType.replace(/_/g, " ")}]
+                            </span>
+                          </div>
+                          <span className="font-mono text-xs font-extrabold">
+                            +{opt.extraPrice === 0 ? "Free" : `Rp ${opt.extraPrice.toLocaleString()}`}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Estimated Total & Checkout */}
+              <div>
+                <div className="bg-brand-lightBg border-2 border-slate-900 p-4 mb-4 font-mono text-xs space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-brand-textMuted uppercase">Service Fee:</span>
+                    <span className="font-bold text-slate-800">
+                      Rp {calculateTotal().toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-brand-textMuted uppercase">Escrow Protection:</span>
+                    <span className="font-bold text-emerald-700">INCLUDED (0%)</span>
+                  </div>
+                  <div className="border-t-2 border-slate-900 pt-2 flex justify-between text-base">
+                    <span className="font-extrabold uppercase">Total:</span>
+                    <span className="font-black text-brand-navy">
+                      Rp {calculateTotal().toLocaleString()}
+                    </span>
                   </div>
                 </div>
 
-                {/* 4. Queue Estimate */}
-                <div className="mb-6">
-                  <label className="block font-medium text-brand-textMain mb-2">4. Queue Estimate: 3-5 Days</label>
-                </div>
-
-                {/* Total & Book Button */}
-                <div className="border-t border-brand-border pt-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-lg font-bold text-brand-textMain">Estimated Total:</span>
-                    <span className="text-xl font-bold text-brand-navy">Rp {calculateTotal().toLocaleString()}</span>
-                  </div>
-                  <a href="/cart" className="block w-full">
-                    <Button variant="primary" isLoading={false} className="w-full text-sm py-3">
-                      Book Service (Escrow Checkout) →
-                    </Button>
-                  </a>
-                </div>
+                <Button
+                  variant="primary"
+                  isLoading={isAddingToCart}
+                  onClick={handleAddToCart}
+                  className="w-full text-xs py-3.5"
+                >
+                  Book Service (Escrow Checkout) →
+                </Button>
               </div>
             </div>
           </div>

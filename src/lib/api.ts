@@ -91,4 +91,13 @@ export const api = {
     getAll: () => apiFetch<any[]>('/orders'),
     getById: (id: string) => apiFetch<any>(`/orders/${id}`),
   },
+  listings: {
+    getAll: () => apiFetch<any[]>('/listings'),
+    getById: (id: string) => apiFetch<any>(`/listings/${id}`),
+    create: (data: any) =>
+      apiFetch<any>('/listings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
 };

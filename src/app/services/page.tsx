@@ -1,123 +1,111 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/Button";
+import { api } from "@/lib/api";
 
-interface ServiceItem {
-  id: number;
-  title: string;
-  provider: string;
-  providerId: string;
-  rating: number;
-  completedJobs: number;
-  pricing: string;
-  turnaround: string;
-  category: "all" | "switch-mods" | "stabilizers" | "acoustics" | "soldering";
-  location: string;
-  image: string;
-  description: string;
-  badge: string;
+interface ServiceOption {
+  id: string;
+  optionName: string;
+  optionType: string;
+  extraPrice: number;
 }
 
-const servicesData: ServiceItem[] = [
-  {
-    id: 1,
-    title: "Linear Switch Lubing & Filming",
-    provider: "@DexterKeyboards",
-    providerId: "dexter",
-    rating: 4.9,
-    completedJobs: 127,
-    pricing: "Rp 3,500 / switch",
-    turnaround: "2-3 Days",
-    category: "switch-mods",
-    location: "Jakarta Selatan",
-    image: "/images/lubing-swtiches.webp",
-    description: "Precision hand-lubing with Krytox 205g0 and custom switch filming for zero wobble and maximum smoothness.",
-    badge: "SWITCH MODS"
-  },
-  {
-    id: 2,
-    title: "Stabilizer Tuning & Holee / Band-Aid Mod",
-    provider: "@KeyboardClinic",
-    providerId: "clinic",
-    rating: 4.8,
-    completedJobs: 89,
-    pricing: "From Rp 150,000",
-    turnaround: "1-2 Days",
-    category: "stabilizers",
-    location: "Bandung",
-    image: "/images/stabs.webp",
-    description: "Eliminates stabilizer rattle and tick on Spacebar, Enter, Shift, and Backspace with wire balancing and Permatex grease.",
-    badge: "STABILIZERS"
-  },
-  {
-    id: 3,
-    title: "Custom Plate & Case Foam Installation",
-    provider: "@ModHouse",
-    providerId: "modhouse",
-    rating: 4.7,
-    completedJobs: 156,
-    pricing: "Rp 75,000 / board",
-    turnaround: "1 Day",
-    category: "acoustics",
-    location: "Surabaya",
-    image: "/images/foam.jpg",
-    description: "Laser-cut Poron or EVA dampening tailored to eliminate hollow case ping and deepen sound signature.",
-    badge: "ACOUSTICS"
-  },
-  {
-    id: 4,
-    title: "Tactile Switch Stem Lubing & Spring Swapping",
-    provider: "@SwitchMaster",
-    providerId: "switchmaster",
-    rating: 4.9,
-    completedJobs: 203,
-    pricing: "Rp 4,000 / switch",
-    turnaround: "3-4 Days",
-    category: "switch-mods",
-    location: "Yogyakarta",
-    image: "/images/switches.jpg",
-    description: "TriboSys 3203 lube keeping tactile bump pronounced while silencing scratch, plus progressive spring swaps.",
-    badge: "SWITCH MODS"
-  },
-  {
-    id: 5,
-    title: "PCB Mill-Max Hotswap Socket Soldering",
-    provider: "@KeyboardClinic",
-    providerId: "clinic",
-    rating: 4.8,
-    completedJobs: 89,
-    pricing: "Rp 250,000 / board",
-    turnaround: "3-5 Days",
-    category: "soldering",
-    location: "Bandung",
-    image: "/images/repair-kb.png",
-    description: "Convert your soldered PCB into a universal hot-swappable board with high-durability Mill-Max 0305/7305 sockets.",
-    badge: "SOLDERING"
-  },
-  {
-    id: 6,
-    title: "Broken Trace PCB Repair & Jumper Soldering",
-    provider: "@ModHouse",
-    providerId: "modhouse",
-    rating: 4.7,
-    completedJobs: 156,
-    pricing: "From Rp 120,000",
-    turnaround: "2-4 Days",
-    category: "soldering",
-    location: "Surabaya",
-    image: "/images/repair-kb.png",
-    description: "Diagnostic repair for dead rows/columns, torn solder pads, detached diodes, or bricked USB ports.",
-    badge: "REPAIR"
+interface ServiceModder {
+  id: string;
+  name: string;
+  email: string;
+  locationCity: string;
+  avgRating: number;
+}
+
+interface ServiceListing {
+  id: string;
+  modderId: string;
+  title: string;
+  description: string;
+  basePrice: number;
+  category: "SWITCH_MODS" | "STABILIZER_MODS" | "CASE_AND_ACOUSTIC" | "CUSTOMIZATION_AESTHETICS" | string;
+  modder?: ServiceModder;
+  options?: ServiceOption[];
+}
+
+const getCategoryFallbackImage = (category: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "/images/lubing-swtiches.webp";
+    case "STABILIZER_MODS":
+      return "/images/stabs.webp";
+    case "CASE_AND_ACOUSTIC":
+      return "/images/foam.jpg";
+    case "CUSTOMIZATION_AESTHETICS":
+    default:
+      return "/images/repair-kb.png";
   }
-];
+};
+
+const getCategoryTurnaround = (category: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "2-3 Days";
+    case "STABILIZER_MODS":
+      return "1-2 Days";
+    case "CASE_AND_ACOUSTIC":
+      return "1 Day";
+    default:
+      return "2-4 Days";
+  }
+};
+
+const formatCategoryBadge = (category: string) => {
+  return category.replace(/_/g, " ");
+};
 
 export default function ServicesCatalogPage() {
+  const [services, setServices] = useState<ServiceListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
 
-  const filteredServices = servicesData.filter((service) => {
-    const matchesCategory = activeCategory === "all" || service.category === activeCategory;
-    const matchesCity = selectedCity === "all" || service.location.toLowerCase().includes(selectedCity.toLowerCase());
+  useEffect(() => {
+    async function loadServices() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await api.listings.getAll();
+        setServices(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        console.error("Failed to load services from backend:", err);
+        setError("Unable to connect to SwitchLab backend service catalog.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadServices();
+  }, []);
+
+  // Collect available cities from database modders
+  const availableCities = Array.from(
+    new Set(
+      services
+        .map((s) => s.modder?.locationCity)
+        .filter((c): c is string => Boolean(c))
+    )
+  );
+
+  const filteredServices = services.filter((service) => {
+    const matchesCategory =
+      activeCategory === "all" ||
+      service.category === activeCategory ||
+      (activeCategory === "SWITCH_MODS" && service.category === "SWITCH_MODS") ||
+      (activeCategory === "STABILIZER_MODS" && service.category === "STABILIZER_MODS") ||
+      (activeCategory === "CASE_AND_ACOUSTIC" && service.category === "CASE_AND_ACOUSTIC") ||
+      (activeCategory === "CUSTOMIZATION_AESTHETICS" && service.category === "CUSTOMIZATION_AESTHETICS");
+
+    const city = (service.modder?.locationCity || "").toLowerCase();
+    const matchesCity = selectedCity === "all" || city.includes(selectedCity.toLowerCase());
+
     return matchesCategory && matchesCity;
   });
 
@@ -135,19 +123,21 @@ export default function ServicesCatalogPage() {
                 Keyboard Modding Services
               </h1>
               <p className="text-sm font-mono text-brand-textMuted uppercase tracking-wider mt-1">
-                Verified Modders • Escrow Payment Protection • Nationwide Shipping
+                Live Database Catalog • Verified Modders • Escrow Payment Protection
               </p>
             </div>
-            
+
             {/* Quick Stats Box */}
             <div className="bg-brand-lightBg border-2 border-slate-900 p-4 flex gap-6">
               <div>
-                <div className="text-xs font-mono text-brand-textMuted uppercase">Active Modders</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">18 Verified</div>
+                <div className="text-xs font-mono text-brand-textMuted uppercase">Active Services</div>
+                <div className="text-xl font-mono font-bold text-brand-navy">{services.length} Listed</div>
               </div>
               <div className="border-l-2 border-slate-300 pl-6">
-                <div className="text-xs font-mono text-brand-textMuted uppercase">Jobs Completed</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">1,420+</div>
+                <div className="text-xs font-mono text-brand-textMuted uppercase">Modder Network</div>
+                <div className="text-xl font-mono font-bold text-brand-navy">
+                  {new Set(services.map((s) => s.modderId)).size} Active
+                </div>
               </div>
             </div>
           </div>
@@ -161,10 +151,10 @@ export default function ServicesCatalogPage() {
           <div className="inline-flex flex-wrap bg-brand-sidebar border-2 border-slate-900 p-1">
             {[
               { key: "all", label: "All Services" },
-              { key: "switch-mods", label: "Switch Mods" },
-              { key: "stabilizers", label: "Stabilizers" },
-              { key: "acoustics", label: "Acoustics" },
-              { key: "soldering", label: "Soldering & Repair" },
+              { key: "SWITCH_MODS", label: "Switch Mods" },
+              { key: "STABILIZER_MODS", label: "Stabilizers" },
+              { key: "CASE_AND_ACOUSTIC", label: "Acoustics & Foam" },
+              { key: "CUSTOMIZATION_AESTHETICS", label: "Custom / Aesthetics" },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -189,89 +179,129 @@ export default function ServicesCatalogPage() {
               className="bg-brand-sidebar border-2 border-slate-900 px-3 py-2 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
             >
               <option value="all">All Cities</option>
-              <option value="jakarta">Jakarta</option>
-              <option value="bandung">Bandung</option>
-              <option value="surabaya">Surabaya</option>
-              <option value="yogyakarta">Yogyakarta</option>
+              {availableCities.map((city) => (
+                <option key={city} value={city.toLowerCase()}>
+                  {city}
+                </option>
+              ))}
+              {availableCities.length === 0 && (
+                <>
+                  <option value="jakarta">Jakarta</option>
+                  <option value="bandung">Bandung</option>
+                  <option value="depok">Depok</option>
+                  <option value="surabaya">Surabaya</option>
+                </>
+              )}
             </select>
           </div>
         </div>
 
+        {/* Status / Loading / Error Indicator */}
+        {loading && (
+          <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center my-8">
+            <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
+            <h2 className="text-base font-mono font-bold text-brand-textMain uppercase">
+              Fetching Services from Database...
+            </h2>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="bg-red-50 border-2 border-red-600 p-6 my-8 text-center font-mono text-xs text-red-700">
+            ⚠️ {error}
+          </div>
+        )}
+
         {/* Results Count */}
-        <div className="mb-4 text-xs font-mono text-brand-textMuted uppercase tracking-wider">
-          Showing {filteredServices.length} available service{filteredServices.length === 1 ? "" : "s"}
-        </div>
+        {!loading && (
+          <div className="mb-4 text-xs font-mono text-brand-textMuted uppercase tracking-wider">
+            Showing {filteredServices.length} live database service{filteredServices.length === 1 ? "" : "s"}
+          </div>
+        )}
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((service) => (
-            <div
-              key={service.id}
-              className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between"
-            >
-              {/* Card Top */}
-              <div>
-                <div className="p-4 pb-2 flex justify-between items-center">
-                  <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
-                    [ {service.badge} ]
-                  </span>
-                  <span className="text-xs font-mono text-brand-textMuted">
-                    ⏳ {service.turnaround}
-                  </span>
-                </div>
-
-                <div className="px-4 pb-2">
-                  <div className="h-40 bg-brand-lightBg overflow-hidden border border-slate-300">
-                    <img
-                      src={service.image}
-                      alt={service.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-4 pt-2">
-                  <h3 className="font-bold text-lg text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
-                    {service.title}
-                  </h3>
-                  <p className="text-xs text-brand-textMuted mb-3 line-clamp-2">
-                    {service.description}
-                  </p>
-                  
-                  {/* Modder Meta */}
-                  <div className="flex justify-between items-center text-xs font-mono border-t border-slate-200 pt-2 mb-3">
-                    <span className="font-semibold text-brand-navy">{service.provider}</span>
-                    <span className="text-brand-textMuted">📍 {service.location}</span>
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredServices.map((service) => (
+              <div
+                key={service.id}
+                className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between"
+              >
+                {/* Card Top */}
+                <div>
+                  <div className="p-4 pb-2 flex justify-between items-center">
+                    <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
+                      [ {formatCategoryBadge(service.category)} ]
+                    </span>
+                    <span className="text-xs font-mono text-brand-textMuted">
+                      ⏳ {getCategoryTurnaround(service.category)}
+                    </span>
                   </div>
 
-                  {/* Rating & Price */}
-                  <div className="flex justify-between items-baseline mb-4">
-                    <div className="flex items-center gap-1 text-xs font-mono">
-                      <span className="text-yellow-500">★</span>
-                      <span className="font-bold text-slate-800">{service.rating}</span>
-                      <span className="text-brand-textMuted">({service.completedJobs} jobs)</span>
-                    </div>
-                    <div className="text-lg font-mono font-extrabold text-brand-navy">
-                      {service.pricing}
+                  <div className="px-4 pb-2">
+                    <div className="h-40 bg-brand-lightBg overflow-hidden border border-slate-300">
+                      <img
+                        src={getCategoryFallbackImage(service.category)}
+                        alt={service.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
                     </div>
                   </div>
+
+                  <div className="p-4 pt-2">
+                    <h3 className="font-bold text-lg text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
+                      {service.title}
+                    </h3>
+                    <p className="text-xs text-brand-textMuted mb-3 line-clamp-2">
+                      {service.description}
+                    </p>
+
+                    {/* Modder Meta */}
+                    <div className="flex justify-between items-center text-xs font-mono border-t border-slate-200 pt-2 mb-3">
+                      <span className="font-semibold text-brand-navy">
+                        @{service.modder?.name || "VerifiedModder"}
+                      </span>
+                      <span className="text-brand-textMuted">
+                        📍 {service.modder?.locationCity || "Indonesia"}
+                      </span>
+                    </div>
+
+                    {/* Rating & Price */}
+                    <div className="flex justify-between items-baseline mb-4">
+                      <div className="flex items-center gap-1 text-xs font-mono">
+                        <span className="text-yellow-500">★</span>
+                        <span className="font-bold text-slate-800">
+                          {service.modder?.avgRating || 4.9}
+                        </span>
+                        <span className="text-brand-textMuted">
+                          ({service.options?.length || 2} options)
+                        </span>
+                      </div>
+                      <div className="text-lg font-mono font-extrabold text-brand-navy">
+                        Rp {service.basePrice.toLocaleString()}{" "}
+                        <span className="text-xs font-normal text-brand-textMuted">
+                          {service.category === "SWITCH_MODS" ? "/ switch" : "/ board"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="p-4 pt-0">
+                  <Link href={`/service/${service.id}`} className="block w-full">
+                    <Button variant="primary" isLoading={false} className="w-full">
+                      Configure & Book (Escrow) →
+                    </Button>
+                  </Link>
                 </div>
               </div>
-
-              {/* Action Button */}
-              <div className="p-4 pt-0">
-                <a href={`/service/${service.id}`} className="block w-full">
-                  <Button variant="primary" isLoading={false} className="w-full">
-                    Configure & Book (Escrow) →
-                  </Button>
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
-        {filteredServices.length === 0 && (
+        {!loading && filteredServices.length === 0 && (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center my-8">
             <p className="text-brand-textMuted font-mono text-base mb-4 uppercase">
               No services found matching your selected filters.

@@ -17,7 +17,7 @@ interface ModderDetail {
   badges: string[];
   portfolio: { title: string; image: string; desc: string }[];
   services: { id: string; title: string; price: string; time: string }[];
-  reviews: { customer: string; date: string; rating: number; comment: string }[];
+  reviews: { customer: string; date: string; rating: number; comment: string; tags?: string[] }[];
 }
 
 export default function ModderProfilePage() {
@@ -58,51 +58,92 @@ export default function ModderProfilePage() {
         );
 
         if (userData) {
-          const detail: ModderDetail = {
-            id: userData.id,
-            name: userData.name || "Artisan Modder",
-            handle: `@${userData.name?.replace(/\s+/g, "") || "Modder"}`,
-            location: `${userData.locationCity || "Indonesia"}`,
-            rating: userData.avgRating || 4.9,
-            completedJobs: 45 + (userData.name?.length || 5) * 8,
-            bio: `Verified mechanical keyboard craftsman specializing in custom lubing, precision acoustic tuning, and PCB assembly in ${userData.locationCity || "Indonesia"}.`,
-            equipment: [
-              "Krytox 205g0 & TriboSys 3203",
-              "Ultrasonic Cleaner",
-              "Precision Switch Openers",
-              "Wire Straightening Jigs",
-              "Temperature Controlled Soldering Station"
-            ],
-            badges: ["VERIFIED MODDER", "KTP VERIFIED", "ESCROW PROTECTED"],
-            portfolio: (userData.portfolios || []).map((p: any, idx: number) => ({
-              title: p.title || "Custom Mechanical Build",
-              image: `/images/${idx % 2 === 0 ? "lubing-swtiches.webp" : "stabs.webp"}`,
-              desc: p.description || "Tuned on workbench with custom acoustic dampening.",
-            })),
-            services: modderServices.map((s: any) => ({
-              id: s.id,
-              title: s.title,
-              price: `Rp ${s.basePrice.toLocaleString()} ${s.category === "SWITCH_MODS" ? "/ switch" : "/ board"}`,
-              time: s.category === "SWITCH_MODS" ? "2-3 Days" : "1-2 Days",
-            })),
-            reviews: (userData.reviewsAsModder || []).map((r: any) => ({
-              customer: "Verified Client",
-              date: new Date(r.createdAt || Date.now()).toLocaleDateString(),
+          // Parse reviews from DB
+          const dbReviews = (userData.reviewsAsModder || []).map((r: any) => ({
+              id: r.id || r.bookingId,
+              customer: r.customer?.name || "Verified Customer",
+              date: new Date(r.createdAt || Date.now()).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" }),
               rating: r.rating || 5,
               comment: r.comment || "Superb switch smoothness and fast turnaround!",
-            })),
-          };
-          setModder(detail);
-        } else {
-          setError("Modder studio profile not found in database.");
+              tags: r.tags || [],
+            }));
+
+            // Merge local reviews from localStorage for this modder if any
+            const localReviews: any[] = [];
+            try {
+              const stored = localStorage.getItem("switchlab_orders");
+              if (stored) {
+                const orders = JSON.parse(stored);
+                if (Array.isArray(orders)) {
+                  orders.forEach((o: any) => {
+                    const modderNameLower = (userData.name || "").toLowerCase();
+                    const orderModderLower = (o.modder || "").toLowerCase();
+                    const isForThisModder =
+                      o.modderId === modderId ||
+                      (orderModderLower && (orderModderLower.includes(modderNameLower) || modderNameLower.includes(orderModderLower)));
+
+                    if (isForThisModder && o.review) {
+                      const alreadyInDb = dbReviews.some((d: any) => d.id === o.id || d.comment === o.review.comment);
+                      if (!alreadyInDb) {
+                        localReviews.push({
+                          id: o.id,
+                          customer: "Adit Pratama (You)",
+                          date: o.review.createdAt
+                            ? new Date(o.review.createdAt).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" })
+                            : "Baru saja",
+                          rating: o.review.rating || 5,
+                          comment: o.review.comment,
+                          tags: o.review.tags || [],
+                        });
+                      }
+                    }
+                  });
+                }
+              }
+            } catch (e) {}
+
+            const mergedReviews = [...localReviews, ...dbReviews];
+
+            const detail: ModderDetail = {
+              id: userData.id,
+              name: userData.name || "Artisan Modder",
+              handle: `@${userData.name?.replace(/\s+/g, "") || "Modder"}`,
+              location: `${userData.locationCity || "Indonesia"}`,
+              rating: userData.avgRating || 4.9,
+              completedJobs: 45 + (userData.name?.length || 5) * 8,
+              bio: `Verified mechanical keyboard craftsman specializing in custom lubing, precision acoustic tuning, and PCB assembly in ${userData.locationCity || "Indonesia"}.`,
+              equipment: [
+                "Krytox 205g0 & TriboSys 3203",
+                "Ultrasonic Cleaner",
+                "Precision Switch Openers",
+                "Wire Straightening Jigs",
+                "Temperature Controlled Soldering Station"
+              ],
+              badges: ["VERIFIED MODDER", "KTP VERIFIED", "ESCROW PROTECTED"],
+              portfolio: (userData.portfolios || []).map((p: any, idx: number) => ({
+                title: p.title || "Custom Mechanical Build",
+                image: `/images/${idx % 2 === 0 ? "lubing-swtiches.webp" : "stabs.webp"}`,
+                desc: p.description || "Tuned on workbench with custom acoustic dampening.",
+              })),
+              services: modderServices.map((s: any) => ({
+                id: s.id,
+                title: s.title,
+                price: `Rp ${s.basePrice.toLocaleString()} ${s.category === "SWITCH_MODS" ? "/ switch" : "/ board"}`,
+                time: s.category === "SWITCH_MODS" ? "2-3 Days" : "1-2 Days",
+              })),
+              reviews: mergedReviews,
+            };
+            setModder(detail);
+          } else {
+            setError("Modder studio profile not found in database.");
+          }
+        } catch (err) {
+          console.error("Failed to load modder profile:", err);
+          setError("Could not load modder details.");
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("Failed to load modder profile:", err);
-        setError("Could not load modder details.");
-      } finally {
-        setLoading(false);
       }
-    }
 
     loadModder();
   }, [modderId]);
@@ -250,9 +291,14 @@ export default function ModderProfilePage() {
 
             {/* Customer Reviews */}
             <div className="bg-brand-sidebar border-2 border-slate-900 p-6">
-              <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain mb-4 pb-2 border-b-2 border-slate-900">
-                Verified Customer Reviews ({modder.reviews.length})
-              </h2>
+              <div className="flex justify-between items-center mb-4 pb-2 border-b-2 border-slate-900">
+                <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain">
+                  Verified Customer Reviews ({modder.reviews.length})
+                </h2>
+                <span className="text-[10px] font-mono text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 border border-emerald-400 uppercase">
+                  ✓ Verified Escrow Reviews
+                </span>
+              </div>
 
               {modder.reviews.length === 0 ? (
                 <p className="text-xs font-mono text-brand-textMuted uppercase">
@@ -261,13 +307,42 @@ export default function ModderProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {modder.reviews.map((rev, i) => (
-                    <div key={i} className="border-b border-slate-200 pb-3 last:border-0 last:pb-0">
-                      <div className="flex justify-between items-center text-xs font-mono mb-1">
-                        <span className="font-bold text-brand-textMain">{rev.customer}</span>
-                        <span className="text-brand-textMuted">{rev.date}</span>
+                    <div key={i} className="border-b border-slate-200 pb-4 last:border-0 last:pb-0 font-mono">
+                      <div className="flex justify-between items-center text-xs mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-brand-textMain">{rev.customer}</span>
+                          <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-300 font-bold uppercase">
+                            ✓ Verified Client
+                          </span>
+                        </div>
+                        <span className="text-brand-textMuted text-[11px]">{rev.date}</span>
                       </div>
-                      <div className="text-yellow-500 text-xs mb-1">★★★★★</div>
-                      <p className="text-xs text-slate-700 leading-relaxed">{rev.comment}</p>
+
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <div className="text-amber-500 text-sm">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star}>{star <= rev.rating ? "★" : "☆"}</span>
+                          ))}
+                        </div>
+                        <span className="text-xs font-black text-slate-800">{rev.rating}.0 / 5.0</span>
+                      </div>
+
+                      {rev.tags && rev.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {rev.tags.map((tag: string) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="text-xs text-slate-700 leading-relaxed bg-white p-3 border border-slate-200 italic">
+                        &ldquo;{rev.comment}&rdquo;
+                      </p>
                     </div>
                   ))}
                 </div>

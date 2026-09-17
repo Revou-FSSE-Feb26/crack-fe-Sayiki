@@ -10,8 +10,10 @@ interface ModderJob {
   customerName: string;
   keyboardModel: string;
   serviceRequested: string;
+  deliveryMethod: "COURIER" | "WALK_IN" | string;
   escrowPayout: number;
-  status: "PAID_WAITING_MODDER" | "CUSTOMER_SENDING_KEYBOARD" | "KEYBOARD_IN_MODDER_HAND" | "SHIPPED_BACK" | "SUCCESS";
+  totalPrice: number;
+  status: "PAID_WAITING_MODDER" | "CUSTOMER_SENDING_KEYBOARD" | "KEYBOARD_IN_MODDER_HAND" | "SHIPPED_BACK" | "SUCCESS" | "UNDER_DISPUTE" | "UNPAID" | "PENDING_ADMIN_VERIFICATION" | string;
   inboundTracking: string;
   outboundTracking: string;
   currentWorkbenchStage: string;
@@ -32,20 +34,27 @@ export default function ModderDashboardPage() {
   const [selectedJob, setSelectedJob] = useState<ModderJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [modderName, setModderName] = useState("Modder");
-  const [dispatchTrackingInput, setDispatchTrackingInput] = useState("SICEPAT-88129034");
+  const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
+  const [dispatchTrackingInput, setDispatchTrackingInput] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   useEffect(() => {
+    let currentUserId: string | null = null;
     try {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         if (u.name) setModderName(u.name);
+        if (u.id) {
+          currentUserId = u.id;
+          setLoggedInUserId(u.id);
+        }
       }
     } catch (e) {}
 
@@ -61,29 +70,53 @@ export default function ModderDashboardPage() {
           if (stored) localOrders = JSON.parse(stored);
         } catch (e) {}
 
-        const mappedDbJobs: ModderJob[] = dbOrders.map((b: any) => ({
+        // Filter out UNPAID and PENDING_ADMIN_VERIFICATION orders:
+        // Modder must NOT work on jobs where escrow deposit is unverified!
+        const filteredDb = dbOrders.filter((b: any) => {
+          // If logged in as modder, only show orders assigned to them
+          if (currentUserId && b.modderId && b.modderId !== currentUserId) {
+            return false;
+          }
+          // Do not show unpaid or unverified orders in the active workbench
+          return b.status !== "UNPAID" && b.status !== "PENDING_ADMIN_VERIFICATION";
+        });
+
+        const mappedDbJobs: ModderJob[] = filteredDb.map((b: any) => ({
           id: b.id,
           orderNumber: b.id.slice(0, 8).toUpperCase(),
           customerName: `${b.customer?.name || "Customer"} (${b.customer?.locationCity || "Indonesia"})`,
           keyboardModel: b.keyboardModel || "Custom Keyboard",
           serviceRequested: b.items?.[0]?.service?.title || "Keyboard Modding Service",
+          deliveryMethod: b.deliveryMethod || "COURIER",
+          totalPrice: b.totalPrice,
           escrowPayout: Math.round(b.totalPrice * 0.95),
-          status: b.status || "KEYBOARD_IN_MODDER_HAND",
-          inboundTracking: b.inboundTrackingNum || "JNE-TRACKING (Delivered)",
+          status: b.status,
+          inboundTracking: b.inboundTrackingNum || (b.deliveryMethod === "WALK_IN" ? "Studio Walk-In Dropoff" : "Pending Inbound"),
           outboundTracking: b.outboundTrackingNum || "",
-          currentWorkbenchStage: "Stage 3: Brush Hand-Lubing & Filming",
-          soundTestUploaded: true,
+          currentWorkbenchStage: b.status === "KEYBOARD_IN_MODDER_HAND" 
+            ? "Stage 3: Brush Hand-Lubing & Filming" 
+            : b.status === "SHIPPED_BACK" || b.status === "SUCCESS"
+            ? "Stage 6: Reassembly & Final Acoustic Testing"
+            : "Stage 1: Board Inspection & Disassembly",
+          soundTestUploaded: b.status === "SHIPPED_BACK" || b.status === "SUCCESS",
         }));
 
-        const mappedLocalJobs: ModderJob[] = (Array.isArray(localOrders) ? localOrders : []).map((o: any) => ({
+        // Filter local storage test orders: exclude unverified
+        const filteredLocal = (Array.isArray(localOrders) ? localOrders : []).filter((o: any) => {
+          return o.status !== "UNPAID" && o.status !== "PENDING_ADMIN_VERIFICATION";
+        });
+
+        const mappedLocalJobs: ModderJob[] = filteredLocal.map((o: any) => ({
           id: o.id,
-          orderNumber: o.id,
-          customerName: "Current User (Jakarta)",
-          keyboardModel: "Custom Keyboard Build",
+          orderNumber: o.id.length > 8 ? o.id.slice(0, 8).toUpperCase() : o.id,
+          customerName: "Verified Customer (Jakarta)",
+          keyboardModel: o.keyboardModel || "Custom Keyboard Build",
           serviceRequested: o.service || "Linear Switch Lubing & Tuning",
-          escrowPayout: Math.round((o.totalPrice || 425000) * 0.95),
-          status: o.status || "KEYBOARD_IN_MODDER_HAND",
-          inboundTracking: "JP89421098842 (Delivered)",
+          deliveryMethod: o.deliveryMethod || "COURIER",
+          totalPrice: o.totalPrice || 63000,
+          escrowPayout: Math.round((o.totalPrice || 63000) * 0.95),
+          status: o.status || "PAID_WAITING_MODDER",
+          inboundTracking: o.deliveryMethod === "WALK_IN" ? "Studio Walk-In Handover" : "Pending Courier",
           outboundTracking: "",
           currentWorkbenchStage: "Stage 1: Board Inspection & Disassembly",
           soundTestUploaded: false,
@@ -123,6 +156,46 @@ export default function ModderDashboardPage() {
     showToast(`Workbench stage updated: ${stage}`);
   };
 
+  // Modder Accepts Job
+  const handleAcceptJob = async (jobId: string) => {
+    const nextStatus = selectedJob?.deliveryMethod === "WALK_IN"
+      ? "CUSTOMER_SENDING_KEYBOARD"
+      : "CUSTOMER_SENDING_KEYBOARD";
+
+    try {
+      await api.orders.update(jobId, { status: nextStatus }).catch(() => null);
+    } catch (e) {}
+
+    setJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, status: nextStatus } : j))
+    );
+    if (selectedJob?.id === jobId) {
+      setSelectedJob((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    }
+    showToast("✓ Booking Accepted! Customer notified to drop off or ship their keyboard.");
+  };
+
+  // Modder Cancels / Declines Job
+  const handleCancelJob = async (jobId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to decline/cancel this order? Escrow will be marked as UNDER_DISPUTE so admin can refund the customer."
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.orders.update(jobId, { status: "UNDER_DISPUTE" }).catch(() => null);
+    } catch (e) {}
+
+    setJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, status: "UNDER_DISPUTE" } : j))
+    );
+    if (selectedJob?.id === jobId) {
+      setSelectedJob((prev) => (prev ? { ...prev, status: "UNDER_DISPUTE" } : null));
+    }
+    showToast("✕ Order cancelled by modder. Marked as UNDER_DISPUTE for escrow refund.");
+  };
+
+  // Modder Confirms Arrival
   const handleConfirmArrival = async (jobId: string) => {
     try {
       await api.orders.update(jobId, { status: "KEYBOARD_IN_MODDER_HAND" }).catch(() => null);
@@ -150,22 +223,27 @@ export default function ModderDashboardPage() {
           : null
       );
     }
-    showToast("Package confirmed received! Customer order tracker updated to KEYBOARD_IN_MODDER_HAND.");
+    showToast("Keyboard arrival confirmed! Customer order tracker updated to KEYBOARD_IN_MODDER_HAND.");
   };
 
+  // Modder Dispatches Outbound
   const handleDispatchShipment = async () => {
-    if (!selectedJob || !dispatchTrackingInput.trim()) return;
+    if (!selectedJob) return;
+    const trackingCode = selectedJob.deliveryMethod === "WALK_IN"
+      ? "STUDIO-HANDOFF-COMPLETED"
+      : dispatchTrackingInput.trim() || "SICEPAT-MOD-DISPATCH";
+
     try {
       await api.orders.update(selectedJob.id, {
         status: "SHIPPED_BACK",
-        outboundTrackingNum: dispatchTrackingInput,
+        outboundTrackingNum: trackingCode,
       }).catch(() => null);
     } catch (e) {}
 
     setJobs((prev) =>
       prev.map((j) =>
         j.id === selectedJob.id
-          ? { ...j, status: "SHIPPED_BACK", outboundTracking: dispatchTrackingInput }
+          ? { ...j, status: "SHIPPED_BACK", outboundTracking: trackingCode }
           : j
       )
     );
@@ -174,12 +252,20 @@ export default function ModderDashboardPage() {
         ? {
             ...prev,
             status: "SHIPPED_BACK",
-            outboundTracking: dispatchTrackingInput,
+            outboundTracking: trackingCode,
           }
         : null
     );
-    showToast(`Order dispatched! Outbound tracking #${dispatchTrackingInput} saved. Customer notified.`);
+    showToast(
+      selectedJob.deliveryMethod === "WALK_IN"
+        ? "Build completed! Customer notified for Studio Walk-In pickup."
+        : `Order dispatched! Outbound tracking #${trackingCode} logged. Customer notified.`
+    );
   };
+
+  const activeJobs = jobs.filter((j) => j.status !== "SUCCESS" && j.status !== "UNDER_DISPUTE");
+  const completedJobs = jobs.filter((j) => j.status === "SUCCESS" || j.status === "UNDER_DISPUTE");
+  const displayedJobs = activeTab === "ACTIVE" ? activeJobs : completedJobs;
 
   return (
     <div className="min-h-screen bg-brand-lightBg">
@@ -202,19 +288,21 @@ export default function ModderDashboardPage() {
                 @{modderName} Studio Workbench
               </h1>
               <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mt-1">
-                Active Escrow Orders • Milestone Stages • Audio Proof Uploads
+                Verified Escrow Orders • Milestone Stages • Outbound Dispatch
               </p>
             </div>
 
             <div className="bg-brand-lightBg border-2 border-slate-900 p-4 flex gap-6">
               <div>
-                <div className="text-xs font-mono text-brand-textMuted uppercase">Active Jobs</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">{jobs.length} in Queue</div>
+                <div className="text-xs font-mono text-brand-textMuted uppercase">Active Escrow Jobs</div>
+                <div className="text-xl font-mono font-bold text-brand-navy">
+                  {loading ? "..." : `${activeJobs.length} Verified`}
+                </div>
               </div>
               <div className="border-l-2 border-slate-300 pl-6">
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Escrow Payouts</div>
                 <div className="text-xl font-mono font-bold text-emerald-700">
-                  Rp {jobs.reduce((sum, j) => sum + j.escrowPayout, 0).toLocaleString()}
+                  {loading ? "..." : `Rp ${activeJobs.reduce((sum, j) => sum + j.escrowPayout, 0).toLocaleString()}`}
                 </div>
               </div>
             </div>
@@ -223,20 +311,67 @@ export default function ModderDashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 mb-6 border-b-2 border-slate-900 pb-2 font-mono text-xs font-bold uppercase">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("ACTIVE");
+              if (activeJobs.length > 0) setSelectedJob(activeJobs[0]);
+            }}
+            className={`px-4 py-2 border-2 transition-all ${
+              activeTab === "ACTIVE"
+                ? "bg-brand-navy text-white border-brand-navy"
+                : "bg-white text-slate-700 border-slate-300 hover:border-slate-800"
+            }`}
+          >
+            Active Queue ({activeJobs.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("COMPLETED");
+              if (completedJobs.length > 0) setSelectedJob(completedJobs[0]);
+            }}
+            className={`px-4 py-2 border-2 transition-all ${
+              activeTab === "COMPLETED"
+                ? "bg-brand-navy text-white border-brand-navy"
+                : "bg-white text-slate-700 border-slate-300 hover:border-slate-800"
+            }`}
+          >
+            Completed / Resolved ({completedJobs.length})
+          </button>
+        </div>
+
         {loading ? (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center font-mono text-xs text-brand-textMuted uppercase">
-            Loading workbench queue from database...
+            <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
+            <h2 className="text-base font-bold text-brand-textMain">Loading Workbench Queue...</h2>
+            <p className="mt-1">Syncing verified escrow bookings from database</p>
           </div>
-        ) : jobs.length === 0 ? (
+        ) : displayedJobs.length === 0 ? (
           <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm">
             <div className="text-4xl mb-3">🛠️</div>
-            <h2 className="text-xl font-black text-brand-textMain mb-2">Workbench is Clear</h2>
+            <h2 className="text-xl font-black text-brand-textMain mb-2">
+              {activeTab === "ACTIVE" ? "Workbench Queue is Clear" : "No Completed Orders"}
+            </h2>
             <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
-              You currently have zero active customer modding orders. When customers configure and book your services via escrow, their boards will appear here.
+              {activeTab === "ACTIVE"
+                ? "Only orders with verified escrow deposits appear here. Once admin verifies pending customer payments in the Escrow Vault, your new jobs will appear ready for acceptance."
+                : "Completed jobs and release receipts will be logged here."}
             </p>
-            <Link href="/services">
-              <Button variant="primary" isLoading={false}>View Available Services →</Button>
-            </Link>
+            <div className="flex justify-center gap-3">
+              <a href="/admin">
+                <Button variant="secondary" isLoading={false} className="text-xs">
+                  ⚡ Open Admin Vault (Verify Pending Transfers)
+                </Button>
+              </a>
+              <Link href="/services">
+                <Button variant="primary" isLoading={false} className="text-xs">
+                  View Modding Services →
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -244,13 +379,16 @@ export default function ModderDashboardPage() {
             <div className="lg:col-span-5 space-y-4">
               <div className="flex justify-between items-center pb-2 border-b-2 border-slate-900">
                 <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain">
-                  Workbench Queue ({jobs.length})
+                  {activeTab === "ACTIVE" ? "Verified Escrow Queue" : "Archived Orders"} ({displayedJobs.length})
                 </h2>
                 <span className="text-xs font-mono text-brand-textMuted uppercase">Select to Manage</span>
               </div>
 
-              {jobs.map((job) => {
+              {displayedJobs.map((job) => {
                 const isSelected = selectedJob?.id === job.id;
+                const isAwaitingAccept = job.status === "PAID_WAITING_MODDER";
+                const isDisputed = job.status === "UNDER_DISPUTE";
+
                 return (
                   <div
                     key={job.id}
@@ -265,7 +403,17 @@ export default function ModderDashboardPage() {
                       <span className="font-mono font-extrabold text-sm text-brand-textMain">
                         Order #{job.orderNumber}
                       </span>
-                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase border border-slate-800 bg-white">
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-mono font-bold uppercase border ${
+                          isAwaitingAccept
+                            ? "bg-amber-50 text-amber-800 border-amber-500"
+                            : isDisputed
+                            ? "bg-rose-50 text-rose-800 border-rose-500"
+                            : job.status === "SUCCESS"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-500"
+                            : "bg-blue-50 text-brand-navy border-brand-navy"
+                        }`}
+                      >
                         {job.status.replace(/_/g, " ")}
                       </span>
                     </div>
@@ -278,9 +426,9 @@ export default function ModderDashboardPage() {
                     </div>
 
                     <div className="flex justify-between items-center text-xs font-mono border-t border-slate-200 pt-2">
-                      <span className="text-slate-600">{job.customerName}</span>
-                      <span className="font-extrabold text-brand-navy">
-                        Rp {job.escrowPayout.toLocaleString()}
+                      <span className="text-slate-600 truncate max-w-[160px]">{job.customerName}</span>
+                      <span className="font-extrabold text-emerald-700">
+                        Payout: Rp {job.escrowPayout.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -301,20 +449,88 @@ export default function ModderDashboardPage() {
                     </span>
                   </div>
 
+                  {/* Accept or Decline Action Box if PAID_WAITING_MODDER */}
+                  {selectedJob.status === "PAID_WAITING_MODDER" && (
+                    <div className="bg-amber-50 border-2 border-amber-500 p-4 mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-bold uppercase text-amber-900 block mb-1">
+                            ⚡ New Escrow Booking Awaiting Modder Acceptance
+                          </span>
+                          <p className="text-[11px] text-amber-800 leading-relaxed">
+                            Payment has been verified by the Admin in Escrow Vault. Accept the job to prompt customer handoff, or decline if your studio queue is full.
+                          </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleAcceptJob(selectedJob.id)}
+                            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase"
+                          >
+                            ✓ Accept Job
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelJob(selectedJob.id)}
+                            className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs uppercase"
+                          >
+                            ✕ Decline Job
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Job Overview Information */}
                   <div className="grid grid-cols-2 gap-4 mb-6 bg-brand-lightBg p-4 border border-slate-300">
                     <div>
                       <span className="text-slate-500 uppercase block text-[10px]">Customer</span>
                       <span className="font-bold text-slate-900">{selectedJob.customerName}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 uppercase block text-[10px]">Keyboard Model</span>
+                      <span className="text-slate-500 uppercase block text-[10px]">Keyboard Target</span>
                       <span className="font-bold text-slate-900">{selectedJob.keyboardModel}</span>
                     </div>
                     <div className="col-span-2">
                       <span className="text-slate-500 uppercase block text-[10px]">Service Config</span>
                       <span className="font-bold text-brand-navy">{selectedJob.serviceRequested}</span>
                     </div>
+                    <div>
+                      <span className="text-slate-500 uppercase block text-[10px]">Delivery Channel</span>
+                      <span className="font-bold text-slate-900">
+                        {selectedJob.deliveryMethod === "WALK_IN" ? "🏢 Studio Walk-In" : "🚚 Courier Shipping"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 uppercase block text-[10px]">Current Status</span>
+                      <span className="font-bold text-brand-terracotta">{selectedJob.status}</span>
+                    </div>
                   </div>
+
+                  {/* Arrival Confirmation Action if CUSTOMER_SENDING_KEYBOARD */}
+                  {selectedJob.status === "CUSTOMER_SENDING_KEYBOARD" && (
+                    <div className="bg-blue-50 border-2 border-brand-navy p-4 mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-bold uppercase text-brand-navy block mb-1">
+                            📦 Package Inbound Awaiting Confirmation
+                          </span>
+                          <p className="text-[11px] text-slate-700">
+                            {selectedJob.deliveryMethod === "WALK_IN"
+                              ? "Customer dropped off the keyboard at your studio? Confirm receipt to begin tuning."
+                              : "Did the courier deliver the customer's keyboard to your studio?"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmArrival(selectedJob.id)}
+                          className="px-4 py-2 bg-brand-navy hover:bg-[#132856] text-white font-bold text-xs uppercase shrink-0"
+                        >
+                          ✓ Confirm Arrival (Move to Workbench)
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Milestone Stages */}
                   <div className="mb-6">
@@ -344,27 +560,56 @@ export default function ModderDashboardPage() {
                   </div>
 
                   {/* Outbound Dispatch Action */}
-                  <div className="border-t-2 border-slate-900 pt-4">
+                  <div className="border-t-2 border-slate-900 pt-4 mb-6">
                     <label className="font-bold uppercase text-brand-textMain block mb-2">
-                      Outbound Return Dispatch:
+                      {selectedJob.deliveryMethod === "WALK_IN"
+                        ? "Complete & Notify Customer for Pickup:"
+                        : "Outbound Return Dispatch (Modder ➔ Customer):"}
                     </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. SICEPAT-88129034"
-                        value={dispatchTrackingInput}
-                        onChange={(e) => setDispatchTrackingInput(e.target.value)}
-                        className="flex-1 px-3 py-2 border-2 border-slate-800 bg-white font-mono text-xs"
-                      />
+
+                    {selectedJob.deliveryMethod === "WALK_IN" ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleDispatchShipment}
+                          className="w-full py-2.5 bg-brand-navy text-white font-bold hover:bg-[#132856] text-xs uppercase"
+                        >
+                          ✓ Mark Build Finished & Notify for Studio Pickup
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. SICEPAT-88129034"
+                          value={dispatchTrackingInput}
+                          onChange={(e) => setDispatchTrackingInput(e.target.value)}
+                          className="flex-1 px-3 py-2 border-2 border-slate-800 bg-white font-mono text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDispatchShipment}
+                          className="px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] text-xs uppercase"
+                        >
+                          Dispatch & Notify
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cancel / Dispute Job Option for Active Job */}
+                  {selectedJob.status !== "UNDER_DISPUTE" && selectedJob.status !== "SUCCESS" && (
+                    <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                      <span className="text-[11px] text-slate-500">Encountered an issue or damaged PCB?</span>
                       <button
                         type="button"
-                        onClick={handleDispatchShipment}
-                        className="px-4 py-2 bg-brand-navy text-white font-bold hover:bg-[#132856] text-xs uppercase"
+                        onClick={() => handleCancelJob(selectedJob.id)}
+                        className="text-xs text-rose-700 hover:text-rose-900 font-bold uppercase underline"
                       >
-                        Dispatch & Notify
+                        ✕ Cancel / Dispute Order
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             )}

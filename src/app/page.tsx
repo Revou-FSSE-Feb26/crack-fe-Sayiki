@@ -23,7 +23,6 @@ const formatCategoryBadge = (category: string) => {
 };
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [services, setServices] = useState<any[]>([]);
   const [portfolios, setPortfolios] = useState<any[]>([]);
   const [modders, setModders] = useState<any[]>([]);
@@ -133,23 +132,20 @@ export default function HomePage() {
             Connect with skilled Indonesian modders. Your funds stay locked in escrow until you verify the audio sound test and feel.
           </p>
 
-          {/* Sharp Big Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative flex">
-              <input
-                type="text"
-                placeholder="Search modders, switch lubing, stabilizer mods..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-5 py-3.5 pr-28 text-base border-2 border-slate-900 focus:border-brand-navy focus:outline-none bg-white text-brand-textMain placeholder:text-brand-textMuted font-mono"
-              />
-              <Link
-                href={`/services`}
-                className="absolute right-1.5 top-1/2 transform -translate-y-1/2 bg-brand-terracotta text-white px-5 py-2 hover:bg-opacity-90 transition-colors font-mono font-bold text-xs uppercase tracking-wider border-2 border-brand-terracotta"
-              >
-                Browse →
-              </Link>
-            </div>
+          {/* Hero Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link
+              href="/services"
+              className="px-6 py-3.5 bg-brand-terracotta hover:bg-opacity-90 text-white font-mono font-bold text-xs uppercase tracking-wider border-2 border-slate-900 shadow-xs transition-transform active:scale-95"
+            >
+              Explore Modding Services →
+            </Link>
+            <Link
+              href="/modders"
+              className="px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider border-2 border-slate-900 shadow-xs transition-transform active:scale-95"
+            >
+              Browse Modder Directory
+            </Link>
           </div>
         </div>
       </div>

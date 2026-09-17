@@ -65,6 +65,7 @@ export default function ServicesCatalogPage() {
   const [services, setServices] = useState<ServiceListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -73,6 +74,16 @@ export default function ServicesCatalogPage() {
     try {
       const stored = localStorage.getItem("user");
       if (stored) setCurrentUser(JSON.parse(stored));
+    } catch (e) {}
+
+    try {
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const q = urlParams.get("search") || urlParams.get("q");
+        if (q) setSearchQuery(q);
+        const cat = urlParams.get("category");
+        if (cat) setActiveCategory(cat);
+      }
     } catch (e) {}
 
     async function loadServices() {
@@ -112,7 +123,16 @@ export default function ServicesCatalogPage() {
     const city = (service.modder?.locationCity || "").toLowerCase();
     const matchesCity = selectedCity === "all" || city.includes(selectedCity.toLowerCase());
 
-    return matchesCategory && matchesCity;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      service.title.toLowerCase().includes(q) ||
+      (service.description && service.description.toLowerCase().includes(q)) ||
+      (service.modder?.name && service.modder.name.toLowerCase().includes(q)) ||
+      (service.category && service.category.toLowerCase().includes(q)) ||
+      (service.options && service.options.some((opt) => opt.optionName.toLowerCase().includes(q)));
+
+    return matchesCategory && matchesCity && matchesSearch;
   });
 
   return (
@@ -173,54 +193,80 @@ export default function ServicesCatalogPage() {
           </div>
         )}
 
-        {/* Filter Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          {/* Category Tabs */}
-          <div className="inline-flex flex-wrap bg-brand-sidebar border-2 border-slate-900 p-1">
-            {[
-              { key: "all", label: "All Services" },
-              { key: "SWITCH_MODS", label: "Switch Mods" },
-              { key: "STABILIZER_MODS", label: "Stabilizers" },
-              { key: "CASE_AND_ACOUSTIC", label: "Acoustics & Foam" },
-              { key: "CUSTOMIZATION_AESTHETICS", label: "Custom / Aesthetics" },
-            ].map((tab) => (
+        {/* Search & Filter Controls */}
+        <div className="space-y-4 mb-8">
+          {/* Service Search Bar */}
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-base pointer-events-none">
+              🔍
+            </span>
+            <input
+              type="text"
+              placeholder="Search services (e.g. Switch Lubing, Stabilizer Tuning, Holee Mod, Foam, Modder name)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-24 py-3.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm text-brand-textMain placeholder:text-brand-textMuted focus:outline-none focus:border-brand-navy shadow-xs"
+            />
+            {searchQuery && (
               <button
-                key={tab.key}
-                onClick={() => setActiveCategory(tab.key)}
-                className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
-                  activeCategory === tab.key
-                    ? "bg-brand-navy text-white border-brand-navy"
-                    : "text-brand-textMuted border-transparent hover:text-brand-textMain"
-                }`}
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-400 font-mono text-xs font-bold text-slate-700 cursor-pointer"
               >
-                {tab.label}
+                Clear ✕
               </button>
-            ))}
+            )}
           </div>
 
-          {/* Location Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold uppercase text-brand-textMuted">Location:</span>
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="bg-brand-sidebar border-2 border-slate-900 px-3 py-2 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
-            >
-              <option value="all">All Cities</option>
-              {availableCities.map((city) => (
-                <option key={city} value={city.toLowerCase()}>
-                  {city}
-                </option>
+          {/* Filter Controls */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Category Tabs */}
+            <div className="inline-flex flex-wrap bg-brand-sidebar border-2 border-slate-900 p-1">
+              {[
+                { key: "all", label: "All Services" },
+                { key: "SWITCH_MODS", label: "Switch Mods" },
+                { key: "STABILIZER_MODS", label: "Stabilizers" },
+                { key: "CASE_AND_ACOUSTIC", label: "Acoustics & Foam" },
+                { key: "CUSTOMIZATION_AESTHETICS", label: "Custom / Aesthetics" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveCategory(tab.key)}
+                  className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
+                    activeCategory === tab.key
+                      ? "bg-brand-navy text-white border-brand-navy"
+                      : "text-brand-textMuted border-transparent hover:text-brand-textMain"
+                  }`}
+                >
+                  {tab.label}
+                </button>
               ))}
-              {availableCities.length === 0 && (
-                <>
-                  <option value="jakarta">Jakarta</option>
-                  <option value="bandung">Bandung</option>
-                  <option value="depok">Depok</option>
-                  <option value="surabaya">Surabaya</option>
-                </>
-              )}
-            </select>
+            </div>
+
+            {/* Location Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold uppercase text-brand-textMuted">Location:</span>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="bg-brand-sidebar border-2 border-slate-900 px-3 py-2 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
+              >
+                <option value="all">All Cities</option>
+                {availableCities.map((city) => (
+                  <option key={city} value={city.toLowerCase()}>
+                    {city}
+                  </option>
+                ))}
+                {availableCities.length === 0 && (
+                  <>
+                    <option value="jakarta">Jakarta</option>
+                    <option value="bandung">Bandung</option>
+                    <option value="depok">Depok</option>
+                    <option value="surabaya">Surabaya</option>
+                  </>
+                )}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -332,7 +378,9 @@ export default function ServicesCatalogPage() {
         {!loading && filteredServices.length === 0 && (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center my-8">
             <p className="text-brand-textMuted font-mono text-base mb-4 uppercase">
-              No services found matching your selected filters.
+              {searchQuery
+                ? `No services found matching "${searchQuery}".`
+                : "No services found matching your selected filters."}
             </p>
             <Button
               variant="secondary"
@@ -340,10 +388,11 @@ export default function ServicesCatalogPage() {
               onClick={() => {
                 setActiveCategory("all");
                 setSelectedCity("all");
+                setSearchQuery("");
               }}
               className="inline-block w-auto"
             >
-              Reset Filters
+              Reset Filters & Search
             </Button>
           </div>
         )}

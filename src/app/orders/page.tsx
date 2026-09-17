@@ -73,7 +73,9 @@ export default function OrdersPage() {
           service: b.items?.[0]?.service?.title || b.keyboardModel || "Keyboard Modding Service",
           totalPrice: b.totalPrice,
           status: b.status,
-          statusLabel: b.status === "SHIPPED_BACK" 
+          statusLabel: b.status === "SUCCESS"
+            ? "COMPLETED • ESCROW RELEASED"
+            : b.status === "SHIPPED_BACK" 
             ? "BUILD FINISHED • READY TO SEND / PICKUP"
             : b.status === "KEYBOARD_IN_MODDER_HAND"
             ? "KEYBOARD ON MODDER WORKBENCH"
@@ -107,7 +109,9 @@ export default function OrdersPage() {
                 service: loc.service || loc.keyboardModel || "Keyboard Modding Service",
                 totalPrice: loc.totalPrice || 0,
                 status: loc.status || "PAID_WAITING_MODDER",
-                statusLabel: loc.status === "SHIPPED_BACK" 
+                statusLabel: loc.status === "SUCCESS"
+                  ? "COMPLETED • ESCROW RELEASED"
+                  : loc.status === "SHIPPED_BACK" 
                   ? "BUILD FINISHED • READY TO SEND / PICKUP" 
                   : (loc.statusLabel || (loc.status || "").replace(/_/g, " ")),
                 badgeClass: loc.status === "SUCCESS" 

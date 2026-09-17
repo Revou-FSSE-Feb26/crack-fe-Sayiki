@@ -85,12 +85,20 @@ export default function OrderDetailPage() {
           if (dbOrder.inboundTrackingNum) setInboundTracking(dbOrder.inboundTrackingNum);
           if (dbOrder.outboundTrackingNum) setOutboundTracking(dbOrder.outboundTrackingNum);
 
-          if (dbOrder.status === "SUCCESS") setCurrentStepIndex(4);
-          else if (dbOrder.status === "SHIPPED_BACK") setCurrentStepIndex(3);
-          else if (dbOrder.status === "KEYBOARD_IN_MODDER_HAND") setCurrentStepIndex(2);
-          else if (dbOrder.status === "CUSTOMER_SENDING_KEYBOARD") setCurrentStepIndex(1);
-          else if (dbOrder.status === "PAID_WAITING_MODDER") setCurrentStepIndex(1);
-          else setCurrentStepIndex(0);
+          if (dbOrder.status === "SUCCESS") {
+            setCurrentStepIndex(4);
+            setEscrowReleased(true);
+          } else if (dbOrder.status === "SHIPPED_BACK") {
+            setCurrentStepIndex(3);
+          } else if (dbOrder.status === "KEYBOARD_IN_MODDER_HAND") {
+            setCurrentStepIndex(2);
+          } else if (dbOrder.status === "CUSTOMER_SENDING_KEYBOARD") {
+            setCurrentStepIndex(1);
+          } else if (dbOrder.status === "PAID_WAITING_MODDER") {
+            setCurrentStepIndex(1);
+          } else {
+            setCurrentStepIndex(0);
+          }
 
           // Sync the live DB status into local storage
           if (localOrder && localOrder.status !== dbOrder.status) {
@@ -125,12 +133,20 @@ export default function OrderDetailPage() {
           if (localOrder.inboundTrackingNum) setInboundTracking(localOrder.inboundTrackingNum);
           if (localOrder.outboundTrackingNum) setOutboundTracking(localOrder.outboundTrackingNum);
           
-          if (localOrder.status === "SUCCESS") setCurrentStepIndex(4);
-          else if (localOrder.status === "SHIPPED_BACK") setCurrentStepIndex(3);
-          else if (localOrder.status === "KEYBOARD_IN_MODDER_HAND") setCurrentStepIndex(2);
-          else if (localOrder.status === "CUSTOMER_SENDING_KEYBOARD") setCurrentStepIndex(1);
-          else if (localOrder.status === "PAID_WAITING_MODDER") setCurrentStepIndex(1);
-          else setCurrentStepIndex(0);
+          if (localOrder.status === "SUCCESS") {
+            setCurrentStepIndex(4);
+            setEscrowReleased(true);
+          } else if (localOrder.status === "SHIPPED_BACK") {
+            setCurrentStepIndex(3);
+          } else if (localOrder.status === "KEYBOARD_IN_MODDER_HAND") {
+            setCurrentStepIndex(2);
+          } else if (localOrder.status === "CUSTOMER_SENDING_KEYBOARD") {
+            setCurrentStepIndex(1);
+          } else if (localOrder.status === "PAID_WAITING_MODDER") {
+            setCurrentStepIndex(1);
+          } else {
+            setCurrentStepIndex(0);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch order:", e);
@@ -147,6 +163,7 @@ export default function OrderDetailPage() {
       if (order?.id) {
         await api.orders.update(order.id, { status: "SUCCESS" }).catch(() => null);
       }
+      setOrder((prev: any) => (prev ? { ...prev, status: "SUCCESS" } : null));
       setCurrentStepIndex(4);
       setEscrowReleased(true);
 
@@ -210,6 +227,7 @@ export default function OrderDetailPage() {
 
   const isWalkIn = order?.deliveryMethod === "WALK_IN";
   const isPendingVerification = order?.status === "PENDING_ADMIN_VERIFICATION";
+  const isCompleted = escrowReleased || order?.status === "SUCCESS";
 
   const steps = [
     { 
@@ -302,7 +320,14 @@ export default function OrderDetailPage() {
               </h1>
             </div>
 
-            {isPendingVerification ? (
+            {isCompleted ? (
+              <div className="bg-emerald-50 border-2 border-emerald-600 px-4 py-2 font-mono text-xs">
+                <span className="text-emerald-800 font-bold block uppercase">✓ Order Completed • Escrow Released</span>
+                <span className="text-emerald-700">
+                  Rp {(order?.totalPrice || 0).toLocaleString()} Transferred to Modder
+                </span>
+              </div>
+            ) : isPendingVerification ? (
               <div className="bg-amber-50 border-2 border-amber-500 px-4 py-2 font-mono text-xs">
                 <span className="text-amber-800 font-bold block uppercase">⏳ Awaiting Admin Verification</span>
                 <span className="text-amber-700">
@@ -340,14 +365,16 @@ export default function OrderDetailPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 relative">
             {steps.map((step, idx) => {
-              const isPast = idx < currentStepIndex;
-              const isCurrent = idx === currentStepIndex;
+              const isPast = isCompleted ? true : idx < currentStepIndex;
+              const isCurrent = !isCompleted && idx === currentStepIndex;
 
               return (
                 <div
                   key={step.key}
                   className={`border-2 p-4 flex flex-col justify-between ${
-                    isCurrent
+                    isCompleted
+                      ? "border-emerald-600 bg-emerald-50/60"
+                      : isCurrent
                       ? "border-brand-navy bg-brand-lightBg"
                       : isPast
                       ? "border-green-600 bg-green-50/50"
@@ -358,7 +385,11 @@ export default function OrderDetailPage() {
                     <div className="flex justify-between items-center mb-2 font-mono text-xs font-bold">
                       <span>STEP 0{idx + 1}</span>
                       <span>
-                        {isPast 
+                        {isCompleted
+                          ? idx === 4
+                            ? "✓ RELEASED"
+                            : "✓ DONE"
+                          : isPast 
                           ? "✓ DONE" 
                           : isCurrent 
                           ? isPendingVerification && idx === 0 
@@ -410,7 +441,7 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-brand-textMuted">Current Workbench Stage:</span>
-                  <span className={`font-bold ${isPendingVerification ? "text-amber-800" : "text-brand-terracotta"}`}>
+                  <span className={`font-bold ${isCompleted ? "text-emerald-700 font-extrabold" : isPendingVerification ? "text-amber-800" : "text-brand-terracotta"}`}>
                     {getStageDescription()}
                   </span>
                 </div>
@@ -525,14 +556,25 @@ export default function OrderDetailPage() {
                   <span className="font-bold text-emerald-700">FREE (SwitchLab Covered)</span>
                 </div>
                 <div className="border-t-2 border-slate-900 pt-3 flex justify-between text-base">
-                  <span className="font-bold uppercase">Held in Escrow:</span>
+                  <span className="font-bold uppercase">
+                    {isCompleted ? "Total Released to Modder:" : "Held in Escrow:"}
+                  </span>
                   <span className="font-extrabold text-brand-navy text-xl">
                     Rp {(order?.totalPrice || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {isPendingVerification ? (
+              {isCompleted ? (
+                <div className="p-4 border-2 border-emerald-600 bg-emerald-50 text-xs font-mono mb-6">
+                  <span className="font-bold text-emerald-800 block uppercase mb-1">
+                    ✓ Order Completed & Escrow Released
+                  </span>
+                  <p className="text-emerald-700 text-[11px] leading-relaxed">
+                    You have confirmed sound & feel and released the escrow funds to the modder. This transaction is finalized and permanently recorded.
+                  </p>
+                </div>
+              ) : isPendingVerification ? (
                 <div className="p-4 border-2 border-amber-600 bg-amber-50 text-xs font-mono mb-6">
                   <span className="font-bold text-amber-800 block uppercase mb-1">
                     ⏳ Verification In Progress

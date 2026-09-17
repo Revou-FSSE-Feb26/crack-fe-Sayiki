@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { api } from "@/lib/api";
@@ -694,38 +695,26 @@ export default function OrderDetailPage() {
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
                   <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain flex items-center gap-1.5">
                     <span>⭐</span>
-                    <span>Rate & Review Your Modder</span>
+                    <span>Modder Performance Review</span>
                   </h3>
-                  {order?.review && !isEditingReview && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingReview(true)}
-                      className="text-[11px] font-mono font-bold text-brand-navy hover:underline uppercase cursor-pointer"
-                    >
-                      ✏️ Edit Review
-                    </button>
-                  )}
+                  <span className="px-2 py-0.5 text-[10px] font-bold font-mono uppercase border border-amber-600 bg-amber-50 text-amber-900">
+                    {order?.review ? "✓ Reviewed" : "Rating Eligible"}
+                  </span>
                 </div>
 
-                {reviewSuccess && (
-                  <div className="p-3 bg-emerald-50 border-2 border-emerald-600 text-emerald-900 text-xs font-mono font-bold mb-4">
-                    ✓ Review submitted successfully! Thank you for supporting community modders.
-                  </div>
-                )}
-
-                {order?.review && !isEditingReview ? (
-                  <div className="bg-white border-2 border-slate-900 p-4 space-y-3 font-mono">
+                {order?.review ? (
+                  <div className="bg-white border-2 border-slate-900 p-5 space-y-4 font-mono">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <span
                             key={star}
-                            className={`text-base ${star <= (order.review.rating || 5) ? "text-amber-500" : "text-slate-300"}`}
+                            className={`text-lg ${star <= (order.review.rating || 5) ? "text-amber-500" : "text-slate-300"}`}
                           >
                             ★
                           </span>
                         ))}
-                        <span className="text-xs font-bold text-slate-800 ml-1.5">
+                        <span className="text-xs font-black text-slate-900 ml-1.5">
                           {order.review.rating}.0 / 5.0
                         </span>
                       </div>
@@ -733,86 +722,50 @@ export default function OrderDetailPage() {
                         ✓ Verified Purchase Review
                       </span>
                     </div>
-                    <p className="text-xs text-slate-700 leading-relaxed bg-brand-lightBg p-3 border border-slate-300 italic">
+
+                    <p className="text-xs text-slate-700 leading-relaxed bg-brand-lightBg p-3.5 border border-slate-300 italic">
                       &ldquo;{order.review.comment}&rdquo;
                     </p>
-                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
-                      <span>Reviewed for: {order.modder || "@VerifiedModder"}</span>
-                      <span>{order.review.createdAt ? new Date(order.review.createdAt).toLocaleDateString() : "Just now"}</span>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200">
+                      <span className="text-[10px] text-slate-400">
+                        Published on {order.review.createdAt ? new Date(order.review.createdAt).toLocaleDateString() : "Recent"}
+                      </span>
+                      <Link
+                        href={`/orders/${orderId}/rate`}
+                        className="px-4 py-2 border-2 border-slate-900 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                      >
+                        <span>✏️</span>
+                        <span>View / Edit Review →</span>
+                      </Link>
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmitReview} className="space-y-4 font-mono">
+                  <div className="bg-white border-2 border-slate-900 p-5 space-y-4 font-mono">
                     <div>
-                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-2">
-                        How would you rate {order?.modder || "the modder"}&apos;s craftsmanship?
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => {
-                          const active = (hoverRating || rating) >= star;
-                          return (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => setRating(star)}
-                              onMouseEnter={() => setHoverRating(star)}
-                              onMouseLeave={() => setHoverRating(0)}
-                              className={`text-2xl transition-transform hover:scale-125 focus:outline-none cursor-pointer ${
-                                active ? "text-amber-500" : "text-slate-300"
-                              }`}
-                            >
-                              ★
-                            </button>
-                          );
-                        })}
-                        <span className="text-xs font-bold text-brand-navy ml-2">
-                          {rating === 5 && "5.0 - Masterpiece! Smooth & Clacky/Thocky 🔥"}
-                          {rating === 4 && "4.0 - Great Build & Acoustic Feel 👍"}
-                          {rating === 3 && "3.0 - Satisfactory Mod 👌"}
-                          {rating === 2 && "2.0 - Some Stem/Stabilizer Rattle ⚠️"}
-                          {rating === 1 && "1.0 - Poor Execution ❌"}
-                        </span>
-                      </div>
+                      <h4 className="text-sm font-black text-brand-textMain mb-1">
+                        How was your tuning experience with {order?.modder || "your modder"}?
+                      </h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Your keyboard has been received and escrow funds released. Help fellow keyboard enthusiasts by sharing your rating on switch smoothness, stabilizer rattle, and acoustic profile.
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
-                        Your Feedback / Sound & Feel Impressions:
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="Tell the community about switch smoothness, stabilizer balance, acoustics, and the modder's communication..."
-                        className="w-full p-3 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg focus:outline-none focus:ring-1 focus:ring-brand-navy"
-                        required
-                      />
+                    <div className="p-3 bg-amber-50 border border-amber-300 text-xs text-amber-950 flex items-center gap-2">
+                      <span>💡</span>
+                      <span>Your rating directly impacts {order?.modder || "the modder"}&apos;s public artisan score and directory ranking.</span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 pt-1">
-                      {isEditingReview ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingReview(false)}
-                          className="px-4 py-2 border-2 border-slate-400 text-slate-700 text-xs font-bold uppercase hover:bg-slate-100 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-500">
-                          Your review directly boosts the modder&apos;s public studio score.
-                        </span>
-                      )}
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        isLoading={isSubmittingReview}
-                        className="text-xs px-6 py-2.5"
+                    <div className="pt-2 flex justify-end">
+                      <Link
+                        href={`/orders/${orderId}/rate`}
+                        className="w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider border-2 border-slate-900 inline-flex items-center justify-center gap-2 shadow-xs transition-colors"
                       >
-                        {isSubmittingReview ? "Submitting..." : isEditingReview ? "Update Review →" : "Submit Modder Review →"}
-                      </Button>
+                        <span>⭐</span>
+                        <span>Rate & Review Modder Now →</span>
+                      </Link>
                     </div>
-                  </form>
+                  </div>
                 )}
               </div>
             )}

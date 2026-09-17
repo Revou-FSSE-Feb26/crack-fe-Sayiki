@@ -19,6 +19,7 @@ interface OrderSummary {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -53,6 +54,8 @@ export default function OrdersPage() {
         setOrders(combined);
       } catch (e) {
         setOrders(Array.isArray(local) ? local : []);
+      } finally {
+        setLoading(false);
       }
     }
     loadCustomerOrders();
@@ -83,13 +86,13 @@ export default function OrdersPage() {
               <div>
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Active Escrow</div>
                 <div className="text-xl font-mono font-bold text-brand-navy">
-                  {orders.length} {orders.length === 1 ? "Order" : "Orders"}
+                  {loading ? "..." : `${orders.length} ${orders.length === 1 ? "Order" : "Orders"}`}
                 </div>
               </div>
               <div className="border-l-2 border-slate-300 pl-6">
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Protected Funds</div>
                 <div className="text-xl font-mono font-bold text-brand-navy">
-                  Rp {totalProtectedFunds.toLocaleString()}
+                  {loading ? "..." : `Rp ${totalProtectedFunds.toLocaleString()}`}
                 </div>
               </div>
             </div>
@@ -98,7 +101,17 @@ export default function OrdersPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {mounted && orders.length === 0 ? (
+        {loading ? (
+          <div className="bg-white border-2 border-slate-900 p-12 text-center my-8 shadow-sm">
+            <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
+            <h2 className="text-base font-mono font-bold text-brand-textMain uppercase">
+              Querying Escrow Ledger & Orders...
+            </h2>
+            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mt-2">
+              Syncing with PostgreSQL database via NestJS API
+            </p>
+          </div>
+        ) : orders.length === 0 ? (
           <div className="bg-white border-2 border-slate-900 p-12 text-center my-8 shadow-sm">
             <div className="text-4xl mb-3">🛡️</div>
             <h2 className="text-xl font-black text-brand-textMain mb-2">No Active Escrow Orders</h2>

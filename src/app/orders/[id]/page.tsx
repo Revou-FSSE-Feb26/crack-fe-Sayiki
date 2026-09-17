@@ -449,6 +449,15 @@ export default function OrderDetailPage() {
                 ⚡ Open Admin Vault (Simulate Approve) →
               </a>
             )}
+            {isCompleted && (
+              <Link
+                href={`/orders/${orderId}/rate`}
+                className="text-xs font-mono font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 border-2 border-slate-900 uppercase tracking-wider inline-flex items-center gap-1.5 shadow-xs transition-colors"
+              >
+                <span>⭐</span>
+                <span>{order?.review ? `Edit Review (${order.review.rating}★) →` : "Rate Modder Now →"}</span>
+              </Link>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 relative">
@@ -679,8 +688,17 @@ export default function OrderDetailPage() {
               )}
 
               {escrowReleased || order?.status === "SUCCESS" ? (
-                <div className="p-4 bg-green-50 border-2 border-green-600 text-center font-mono text-xs text-green-800 font-bold uppercase">
-                  ✓ Escrow Released to Modder. Thank you!
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-50 border-2 border-green-600 text-center font-mono text-xs text-green-800 font-bold uppercase">
+                    ✓ Escrow Released to Modder
+                  </div>
+                  <Link
+                    href={`/orders/${orderId}/rate`}
+                    className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 inline-flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    <span>⭐</span>
+                    <span>{order?.review ? "Edit Modder Review →" : "Rate Modder →"}</span>
+                  </Link>
                 </div>
               ) : isPendingVerification ? (
                 <div className="p-3 bg-slate-100 border-2 border-slate-400 text-center font-mono text-xs text-slate-600 font-bold uppercase">
@@ -699,103 +717,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* Full-Width Customer Rating & Review Section */}
-        {isCompleted && (
-          <div id="rate-modder" className="mt-8 bg-brand-sidebar border-2 border-slate-900 p-6 sm:p-8 shadow-xs">
-            <div className="flex flex-wrap items-center justify-between border-b-2 border-slate-900 pb-3 mb-6 gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">⭐</span>
-                <div>
-                  <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-brand-textMain">
-                    Modder Performance & Craftsmanship Review
-                  </h3>
-                  <p className="text-[11px] font-mono text-brand-textMuted">
-                    Escrow Funds Disbursed • Feedback Verified by SwitchLab
-                  </p>
-                </div>
-              </div>
-              <span className="px-3 py-1 text-xs font-bold font-mono uppercase border border-amber-600 bg-amber-50 text-amber-900">
-                {order?.review ? "✓ Verified Review Published" : "Rating Eligible"}
-              </span>
-            </div>
-
-            {order?.review ? (
-              <div className="bg-white border-2 border-slate-900 p-6 font-mono">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                  <div className="md:col-span-8 space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            className={`text-xl ${star <= (order.review.rating || 5) ? "text-amber-500" : "text-slate-300"}`}
-                          >
-                            ★
-                          </span>
-                        ))}
-                        <span className="text-sm font-black text-slate-900 ml-2">
-                          {order.review.rating}.0 / 5.0
-                        </span>
-                      </div>
-                      <span className="px-2.5 py-0.5 bg-emerald-50 border border-emerald-600 text-emerald-800 text-[11px] font-bold uppercase">
-                        ✓ Verified Purchase Review
-                      </span>
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-slate-800 leading-relaxed bg-brand-lightBg p-4 border border-slate-300 italic">
-                      &ldquo;{order.review.comment}&rdquo;
-                    </p>
-
-                    <div className="text-xs text-slate-400">
-                      Published on {order.review.createdAt ? new Date(order.review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Recent"} • Artisan: <strong className="text-slate-700">{order?.modder || "@VerifiedModder"}</strong>
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-4 flex md:justify-end items-center">
-                    <Link
-                      href={`/orders/${orderId}/rate`}
-                      className="w-full md:w-auto px-6 py-3.5 border-2 border-slate-900 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-xs transition-colors"
-                    >
-                      <span>✏️</span>
-                      <span>View / Edit Full Review →</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border-2 border-slate-900 p-6 font-mono">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                  <div className="md:col-span-8 space-y-2">
-                    <h4 className="text-base font-black text-brand-textMain">
-                      How was your tuning experience with {order?.modder || "your modder"}?
-                    </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Your keyboard has been received and escrow funds released. Help fellow keyboard enthusiasts by sharing your rating on switch smoothness, stabilizer rattle, and acoustic profile.
-                    </p>
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-300 text-xs text-amber-950 font-bold mt-1">
-                      <span>💡</span>
-                      <span>Your rating directly impacts {order?.modder || "the modder"}&apos;s public artisan score and directory ranking.</span>
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-4 flex flex-col md:items-end justify-center gap-3">
-                    <Link
-                      href={`/orders/${orderId}/rate`}
-                      className="w-full md:w-auto px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider border-2 border-slate-900 inline-flex items-center justify-center gap-2 shadow-xs transition-colors"
-                    >
-                      <span>⭐</span>
-                      <span>Rate & Review Modder Now →</span>
-                    </Link>
-                    <span className="text-[11px] text-slate-400 font-mono text-center md:text-right">
-                      Takes ~1 min • Aspect tags & sound test clip
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

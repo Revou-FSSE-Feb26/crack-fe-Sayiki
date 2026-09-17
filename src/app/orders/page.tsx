@@ -3,13 +3,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 
+import { api } from "@/lib/api";
+
 interface OrderSummary {
   id: string;
   date: string;
   modder: string;
   service: string;
   totalPrice: number;
-  status: "PAID_WAITING_MODDER" | "CUSTOMER_SENDING_KEYBOARD" | "KEYBOARD_IN_MODDER_HAND" | "SHIPPED_BACK" | "SUCCESS";
+  status: "PAID_WAITING_MODDER" | "CUSTOMER_SENDING_KEYBOARD" | "KEYBOARD_IN_MODDER_HAND" | "SHIPPED_BACK" | "SUCCESS" | string;
   statusLabel: string;
   badgeClass: string;
 }
@@ -20,19 +22,40 @@ export default function OrdersPage() {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const stored = localStorage.getItem("switchlab_orders");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setOrders(parsed);
-          return;
+    async function loadCustomerOrders() {
+      let local: any[] = [];
+      try {
+        const stored = localStorage.getItem("switchlab_orders");
+        if (stored) {
+          local = JSON.parse(stored);
         }
+      } catch (e) {}
+
+      try {
+        const dbOrders = await api.orders.getAll();
+        const mappedDb = (Array.isArray(dbOrders) ? dbOrders : []).map((b: any) => ({
+          id: b.id,
+          date: new Date(b.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          modder: `@${b.modder?.name || "Modder"}`,
+          service: b.items?.[0]?.service?.title || b.keyboardModel || "Keyboard Modding Service",
+          totalPrice: b.totalPrice,
+          status: b.status,
+          statusLabel: b.status.replace(/_/g, " "),
+          badgeClass: b.status === "SUCCESS" ? "bg-green-50 text-green-700 border-green-600" : "bg-blue-50 text-blue-700 border-blue-600",
+        }));
+
+        const combined = [...(Array.isArray(local) ? local : [])];
+        mappedDb.forEach((dbItem: any) => {
+          if (!combined.some((c) => c.id === dbItem.id)) {
+            combined.push(dbItem);
+          }
+        });
+        setOrders(combined);
+      } catch (e) {
+        setOrders(Array.isArray(local) ? local : []);
       }
-      setOrders([]);
-    } catch (e) {
-      setOrders([]);
     }
+    loadCustomerOrders();
   }, []);
 
   const totalProtectedFunds = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);

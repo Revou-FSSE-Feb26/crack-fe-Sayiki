@@ -121,6 +121,8 @@ export default function ServiceDetailPage() {
     const cartItem = {
       id: Date.now(),
       type: "service",
+      serviceId: service.id,
+      modderId: service.modderId,
       title: `${service.title}${optionSummary}`,
       variation: service.category === "SWITCH_MODS" ? `${unitCount}x Switches (${switchType})` : "Standard Keyboard Service",
       provider: `@${service.modder?.name || "VerifiedModder"}`,

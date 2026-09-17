@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { api } from "@/lib/api";
 
 const steps = [
   { key: "PAID", label: "Funds in Escrow", desc: "Payment held safely by SwitchLab" },
@@ -14,7 +15,7 @@ const steps = [
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const orderId = params?.id || "SWL-8942";
+  const orderId = (params?.id as string) || "";
 
   const [order, setOrder] = useState<any>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(2); // On Workbench
@@ -23,16 +24,42 @@ export default function OrderDetailPage() {
   const [escrowReleased, setEscrowReleased] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("switchlab_orders");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const found = parsed.find((o: any) => o.id === orderId);
-          if (found) setOrder(found);
+    async function fetchOrder() {
+      if (!orderId) return;
+      try {
+        const stored = localStorage.getItem("switchlab_orders");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const found = parsed.find((o: any) => o.id === orderId);
+            if (found) {
+              setOrder(found);
+              return;
+            }
+          }
         }
-      }
-    } catch (e) {}
+        let dbOrder = await api.orders.getById(orderId).catch(() => null);
+        if (!dbOrder) {
+          const allOrders = await api.orders.getAll().catch(() => []);
+          dbOrder = (allOrders || []).find((o: any) => o.id === orderId || o.id.toLowerCase().startsWith(orderId.toLowerCase()));
+        }
+        if (dbOrder) {
+          setOrder({
+            id: dbOrder.id,
+            totalPrice: dbOrder.totalPrice,
+            modder: `@${dbOrder.modder?.name || "Modder"}`,
+            service: dbOrder.items?.[0]?.service?.title || dbOrder.keyboardModel || "Keyboard Modding",
+            status: dbOrder.status,
+          });
+          if (dbOrder.status === "SUCCESS") setCurrentStepIndex(4);
+          else if (dbOrder.status === "SHIPPED_BACK") setCurrentStepIndex(3);
+          else if (dbOrder.status === "KEYBOARD_IN_MODDER_HAND") setCurrentStepIndex(2);
+          else if (dbOrder.status === "CUSTOMER_SENDING_KEYBOARD") setCurrentStepIndex(1);
+          else setCurrentStepIndex(0);
+        }
+      } catch (e) {}
+    }
+    fetchOrder();
   }, [orderId]);
 
   const handleReleaseEscrow = () => {
@@ -115,7 +142,7 @@ export default function OrderDetailPage() {
                   Modder Workbench Notes
                 </h3>
                 <span className="text-xs font-mono text-brand-navy font-bold">
-                  Modder: {order?.modder || "@DexterKeyboards"}
+                  Modder: {order?.modder || "@VerifiedModder"}
                 </span>
               </div>
 

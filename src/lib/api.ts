@@ -90,6 +90,20 @@ export const api = {
   orders: {
     getAll: () => apiFetch<any[]>('/orders'),
     getById: (id: string) => apiFetch<any>(`/orders/${id}`),
+    create: (data: any) =>
+      apiFetch<any>('/orders', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/orders/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+  users: {
+    getAll: () => apiFetch<any[]>('/users'),
+    getById: (id: string) => apiFetch<any>(`/users/${id}`),
   },
   listings: {
     getAll: () => apiFetch<any[]>('/listings'),

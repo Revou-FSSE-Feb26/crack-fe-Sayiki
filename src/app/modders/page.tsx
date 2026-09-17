@@ -26,32 +26,39 @@ export default function ModdersDirectoryPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
-    api.modders.getAll()
-      .then((backendModders) => {
-        if (backendModders && backendModders.length > 0) {
+    api.users.getAll()
+      .then((allUsers) => {
+        const dbModders = allUsers?.filter((u: any) => u.role === 'MODDER') || [];
+        if (dbModders.length > 0) {
           setIsBackendConnected(true);
-          const enriched = backendModders.map((item: any, idx: number) => ({
-            id: item.id,
-            username: `@${item.modder?.name?.replace(/\s+/g, '') || 'Artisan' + (idx + 1)}`,
-            displayName: item.modder?.name || item.title || 'Artisan Modder',
-            avatar: `/images/${idx % 2 === 0 ? 'lubing-swtiches.webp' : 'stabs.webp'}`,
-            status: 'accepting',
-            rating: item.modder?.avgRating || 4.9,
-            totalOrders: 60 + idx * 30,
-            location: {
-              city: item.modder?.locationCity || 'Bandung',
-              province: 'Indonesia'
-            },
-            specialties: ['Lubing & Tuning', 'Stabilizers'],
-            lubingStyle: 'Hand-Lubed (Krytox)',
-            equipment: ['Soldering Iron', 'Ultrasonic Cleaner'],
-            turnaroundTime: 'Standard (3-5 days)',
-            soundTest: {
-              title: item.title || 'Custom Acoustic Build',
-              duration: '0:45'
-            },
-            isVerified: true
-          }));
+          const enriched = dbModders.map((item: any, idx: number) => {
+            const firstPortfolio = item.portfolios?.[0];
+            const specialtiesList = item.services?.length > 0
+              ? item.services.map((s: any) => s.title)
+              : ['Lubing & Tuning', 'Stabilizers'];
+            return {
+              id: item.id,
+              username: `@${item.name?.replace(/\s+/g, '') || 'Modder' + (idx + 1)}`,
+              displayName: item.name || 'Artisan Modder',
+              avatar: `/images/${idx % 2 === 0 ? 'lubing-swtiches.webp' : 'stabs.webp'}`,
+              status: 'accepting',
+              rating: item.avgRating || 4.9,
+              totalOrders: item.bookingsAsModder?.length || 0,
+              location: {
+                city: item.locationCity || 'Bandung',
+                province: 'Indonesia'
+              },
+              specialties: specialtiesList,
+              lubingStyle: 'Hand-Lubed (Krytox)',
+              equipment: ['Soldering Iron', 'Ultrasonic Cleaner'],
+              turnaroundTime: 'Standard (3-5 days)',
+              soundTest: {
+                title: firstPortfolio?.title || 'Custom Acoustic Build',
+                duration: '0:45'
+              },
+              isVerified: item.isVerified ?? true
+            };
+          });
           setModders(enriched);
         }
       })

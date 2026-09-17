@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { api } from "@/lib/api";
 
 interface CartItem {
   id: number;
@@ -98,35 +99,66 @@ export default function CartPage() {
 
   const [createdOrderId, setCreatedOrderId] = useState<string>("SWL-8942");
 
-  const handleSubmitProof = () => {
+  const handleSubmitProof = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowPaywallModal(false);
+    let orderId = `SWL-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      const generatedId = `SWL-${Math.floor(1000 + Math.random() * 9000)}`;
-      setCreatedOrderId(generatedId);
+    try {
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const customerId = user?.id || "48c8fc2d-d918-456c-80ea-662d8b17f120";
+      const modderId = (items[0] as any)?.modderId || "f45ee67f-610d-4dff-9f11-5a4463037e5a";
+      const serviceId = (items[0] as any)?.serviceId || "08e593e5-77ef-4048-b704-31bd6da43177";
 
-      // Save order to switchlab_orders for this customer
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem("switchlab_orders") || "[]");
-        const newOrder = {
-          id: generatedId,
-          date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-          modder: items[0]?.provider || "@DexterKeyboards",
-          service: items.map((i) => i.title).join(" + "),
-          totalPrice: exactTransferTotal,
-          status: "PAID_WAITING_MODDER",
-          statusLabel: "FUNDS IN ESCROW • AWAITING MODDER ACCEPTANCE",
-          badgeClass: "bg-blue-50 text-blue-700 border-blue-600",
-        };
-        localStorage.setItem("switchlab_orders", JSON.stringify([newOrder, ...existingOrders]));
-      } catch (e) {}
+      const randomMinutes = Math.floor(Math.random() * 100000) + 60;
+      const bookingDate = new Date(Date.now() + randomMinutes * 60000).toISOString();
 
-      // Empty cart
-      syncCart([]);
-      setOrderComplete(true);
-    }, 1000);
+      const created = await api.orders.create({
+        customerId,
+        modderId,
+        keyboardModel: items[0]?.title || "Custom Keyboard",
+        deliveryMethod,
+        totalPrice: exactTransferTotal,
+        bookingDate,
+        paymentProof: receiptFileName || "proofs/payment-proof.png",
+        items: [
+          {
+            serviceId,
+            subTotal: exactTransferTotal,
+          },
+        ],
+      });
+
+      if (created && created.id) {
+        orderId = created.id;
+      }
+    } catch (err) {
+      console.warn("Could not persist to database via NestJS, falling back:", err);
+    }
+
+    setIsProcessing(false);
+    setShowPaywallModal(false);
+    setCreatedOrderId(orderId);
+
+    // Save order to switchlab_orders for this customer
+    try {
+      const existingOrders = JSON.parse(localStorage.getItem("switchlab_orders") || "[]");
+      const newOrder = {
+        id: orderId,
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        modder: items[0]?.provider || "@VerifiedModder",
+        service: items.map((i) => i.title).join(" + "),
+        totalPrice: exactTransferTotal,
+        status: "PAID_WAITING_MODDER",
+        statusLabel: "FUNDS IN ESCROW • AWAITING MODDER ACCEPTANCE",
+        badgeClass: "bg-blue-50 text-blue-700 border-blue-600",
+      };
+      localStorage.setItem("switchlab_orders", JSON.stringify([newOrder, ...existingOrders]));
+    } catch (e) {}
+
+    // Empty cart
+    syncCart([]);
+    setOrderComplete(true);
   };
 
   if (orderComplete) {

@@ -191,8 +191,8 @@ export function Navbar() {
 
           {/* Right Action Group */}
           <div className="flex items-center gap-2 md:gap-2.5 font-mono text-xs font-bold uppercase tracking-wider shrink-0">
-            {/* Modder Studio Workbench: ONLY for MODDER or ADMIN */}
-            {mounted && user && (user.role === "MODDER" || user.role === "ADMIN") && (
+            {/* Modder Studio Workbench: ONLY for MODDER */}
+            {mounted && user && user.role === "MODDER" && (
               <Link
                 href="/modder/dashboard"
                 className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 box-border ${
@@ -223,8 +223,8 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Cart Button: ONLY visible when logged in */}
-            {mounted && user && (
+            {/* Cart Button: ONLY for CUSTOMER or when cart has active items */}
+            {mounted && user && (user.role === "CUSTOMER" || cartCount > 0) && (
               <Link
                 href="/cart"
                 className={`h-9 px-3 border-2 transition-colors inline-flex items-center justify-center gap-1.5 box-border shrink-0 whitespace-nowrap ${
@@ -255,7 +255,7 @@ export function Navbar() {
                 <button
                   type="button"
                   onClick={() => setShowNotifs(!showNotifs)}
-                  className={`h-9 px-3 border-2 transition-all inline-flex items-center justify-center gap-1.5 box-border shrink-0 whitespace-nowrap ${
+                  className={`h-9 px-2.5 sm:px-3 border-2 transition-all inline-flex items-center justify-center gap-1.5 box-border shrink-0 whitespace-nowrap ${
                     showNotifs || unreadCount > 0
                       ? "border-brand-navy bg-blue-50 text-brand-navy"
                       : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
@@ -263,7 +263,7 @@ export function Navbar() {
                   title="Live Order & Escrow Notifications"
                 >
                   <span className="text-xs leading-none">🔔</span>
-                  <span className="hidden sm:inline text-xs leading-none">Alerts</span>
+                  <span className="hidden lg:inline text-xs leading-none">Alerts</span>
                   {unreadCount > 0 && (
                     <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black leading-none animate-pulse">
                       {unreadCount}
@@ -344,8 +344,8 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/profile"
-                  title="Manage Profile & Studio Location"
-                  className={`h-9 px-3 border-2 text-xs font-mono font-bold truncate max-w-[160px] inline-flex items-center gap-1.5 box-border transition-colors shrink-0 ${
+                  title="Manage Profile & Settings"
+                  className={`h-9 px-3 border-2 text-xs font-mono font-bold truncate max-w-[180px] md:max-w-[220px] inline-flex items-center gap-1.5 box-border transition-colors shrink-0 ${
                     isRouteActive("/profile")
                       ? "bg-brand-navy text-white border-brand-navy"
                       : "bg-slate-100 border-slate-900 text-slate-800 hover:bg-slate-200 hover:border-brand-navy"
@@ -353,7 +353,6 @@ export function Navbar() {
                 >
                   <span className="text-xs leading-none">👤</span>
                   <span className="truncate leading-none">{user.name}</span>
-                  <span className="text-[10px] leading-none text-slate-500 font-mono" title="Edit Profile">✏️</span>
                 </Link>
                 <button
                   onClick={handleLogout}

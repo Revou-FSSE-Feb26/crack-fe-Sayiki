@@ -130,7 +130,9 @@ export default function ModdersDirectoryPage() {
             <div className="bg-brand-lightBg border-2 border-slate-900 p-4 flex gap-6">
               <div>
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Active Modders</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">{modders.length} Verified</div>
+                <div className="text-xl font-mono font-bold text-brand-navy">
+                  {loading ? "..." : `${modders.length} Verified`}
+                </div>
               </div>
               <div className="border-l-2 border-slate-300 pl-6">
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Avg Rating</div>
@@ -224,38 +226,54 @@ export default function ModdersDirectoryPage() {
           <div className="flex-1">
             <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
               <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-textMain">
-                MODDER RESULTS (Showing {filteredModders.length} modders)
+                MODDER RESULTS ({loading ? "..." : `Showing ${filteredModders.length} modders`})
               </h2>
             </div>
 
-            {/* Modder Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredModders.map((modder) => (
-                <ModderCard key={modder.id} modder={modder} />
-              ))}
-            </div>
-
-            {filteredModders.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-brand-textMuted text-lg">No modders found matching your criteria.</p>
-                <Button
-                  variant="secondary"
-                  isLoading={false}
-                  className="mt-4"
-                  onClick={() => {
-                    setFilters({
-                      location: [],
-                      specialties: [],
-                      status: [],
-                      lubingStyle: [],
-                      equipment: []
-                    });
-                    setSearchQuery('');
-                  }}
-                >
-                  Clear All Filters
-                </Button>
+            {loading ? (
+              <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center my-4 shadow-sm">
+                <div className="text-3xl mb-3 animate-spin inline-block font-mono">⚙️</div>
+                <h2 className="text-base font-mono font-bold text-brand-textMain uppercase">
+                  Discovering Verified Craftsmen & Studios...
+                </h2>
+                <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mt-2">
+                  Fetching active keyboard modders from PostgreSQL database
+                </p>
               </div>
+            ) : (
+              <>
+                {/* Modder Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredModders.map((modder) => (
+                    <ModderCard key={modder.id} modder={modder} />
+                  ))}
+                </div>
+
+                {filteredModders.length === 0 && (
+                  <div className="bg-brand-sidebar border-2 border-slate-900 text-center py-12 px-6">
+                    <p className="text-brand-textMuted text-sm font-mono uppercase">
+                      No modders found matching your search criteria.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      isLoading={false}
+                      className="mt-4"
+                      onClick={() => {
+                        setFilters({
+                          location: [],
+                          specialties: [],
+                          status: [],
+                          lubingStyle: [],
+                          equipment: []
+                        });
+                        setSearchQuery('');
+                      }}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -188,6 +188,21 @@ export default function ModderDashboardPage() {
       setSelectedJob((prev) => (prev ? { ...prev, status: nextStatus } : null));
     }
 
+    // Update local storage if present
+    try {
+      const stored = localStorage.getItem("switchlab_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((o: any) =>
+            o.id === jobId ? { ...o, status: nextStatus, statusLabel: "CUSTOMER SENDING KEYBOARD" } : o
+          );
+          localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {}
+
     try {
       await api.orders.update(jobId, { status: nextStatus }).catch(() => null);
       showToast("✓ Booking Accepted! Customer notified to drop off or ship their keyboard.");
@@ -212,6 +227,21 @@ export default function ModderDashboardPage() {
     if (selectedJob?.id === jobId) {
       setSelectedJob((prev) => (prev ? { ...prev, status: "UNDER_DISPUTE" } : null));
     }
+
+    // Update local storage if present
+    try {
+      const stored = localStorage.getItem("switchlab_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((o: any) =>
+            o.id === jobId ? { ...o, status: "UNDER_DISPUTE", statusLabel: "UNDER DISPUTE" } : o
+          );
+          localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {}
 
     try {
       await api.orders.update(jobId, { status: "UNDER_DISPUTE" }).catch(() => null);
@@ -248,6 +278,21 @@ export default function ModderDashboardPage() {
       );
     }
 
+    // Update local storage if present
+    try {
+      const stored = localStorage.getItem("switchlab_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((o: any) =>
+            o.id === jobId ? { ...o, status: "KEYBOARD_IN_MODDER_HAND", statusLabel: "KEYBOARD ON MODDER WORKBENCH" } : o
+          );
+          localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {}
+
     try {
       await api.orders.update(jobId, { status: "KEYBOARD_IN_MODDER_HAND" }).catch(() => null);
       showToast("Keyboard arrival confirmed! Customer order tracker updated to KEYBOARD_IN_MODDER_HAND.");
@@ -281,6 +326,27 @@ export default function ModderDashboardPage() {
           }
         : null
     );
+
+    // Update local storage if present
+    try {
+      const stored = localStorage.getItem("switchlab_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((o: any) =>
+            o.id === selectedJob.id ? {
+              ...o,
+              status: "SHIPPED_BACK",
+              outboundTrackingNum: trackingCode,
+              statusLabel: "BUILD FINISHED • READY TO SEND / PICKUP",
+              badgeClass: "bg-emerald-100 text-emerald-900 border-emerald-600 font-black",
+            } : o
+          );
+          localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {}
 
     try {
       await api.orders.update(selectedJob.id, {

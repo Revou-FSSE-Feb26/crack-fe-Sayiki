@@ -49,15 +49,21 @@ export default function OrdersPage() {
 
       try {
         setLoading(true);
-        const dbOrders = await api.orders.getAll({ customerId: userObj.id });
+        const dbOrders = await api.orders.getAll({ customerId: userObj.id }).catch(() => []);
         
-        // Strict customer isolation filter:
+        // Customer isolation filter:
         const filteredDb = (Array.isArray(dbOrders) ? dbOrders : []).filter((b: any) => {
-          return (
+          const isUserCustomer = 
             b.customerId === userObj.id ||
             b.customer?.id === userObj.id ||
-            (userObj.email && b.customer?.email?.toLowerCase() === userObj.email.toLowerCase())
-          );
+            (userObj.email && b.customer?.email?.toLowerCase() === userObj.email.toLowerCase());
+
+          // In demo environment, allow customer session to see seeded orders as well
+          const isDemoCustomer = 
+            userObj.role === "CUSTOMER" && 
+            (!userObj.email || userObj.email.toLowerCase().includes("customer") || userObj.id === "48c8fc2d-d918-456c-80ea-662d8b17f120");
+
+          return isUserCustomer || (isDemoCustomer && b.customerId === "48c8fc2d-d918-456c-80ea-662d8b17f120");
         });
 
         const mappedDb: OrderSummary[] = filteredDb.map((b: any) => ({
@@ -67,24 +73,65 @@ export default function OrdersPage() {
           service: b.items?.[0]?.service?.title || b.keyboardModel || "Keyboard Modding Service",
           totalPrice: b.totalPrice,
           status: b.status,
-          statusLabel: b.status.replace(/_/g, " "),
-          badgeClass: b.status === "SUCCESS" ? "bg-green-50 text-green-700 border-green-600" : "bg-blue-50 text-blue-700 border-blue-600",
+          statusLabel: b.status === "SHIPPED_BACK" 
+            ? "BUILD FINISHED • READY TO SEND / PICKUP"
+            : b.status === "KEYBOARD_IN_MODDER_HAND"
+            ? "KEYBOARD ON MODDER WORKBENCH"
+            : b.status.replace(/_/g, " "),
+          badgeClass: b.status === "SUCCESS" 
+            ? "bg-green-50 text-green-700 border-green-600" 
+            : b.status === "SHIPPED_BACK"
+            ? "bg-emerald-100 text-emerald-900 border-emerald-600 font-black"
+            : "bg-blue-50 text-blue-700 border-blue-600",
         }));
 
-        // Filter local storage orders strictly by customer
-        const filteredLocal = (Array.isArray(local) ? local : []).filter((o: any) => {
-          return (
-            o.customerId === userObj.id ||
-            (userObj.email && o.customerEmail?.toLowerCase() === userObj.email.toLowerCase())
-          );
-        });
+        // Start with live DB orders as the primary source of truth
+        const combined: OrderSummary[] = [...mappedDb];
 
-        const combined = [...filteredLocal];
-        mappedDb.forEach((dbItem: OrderSummary) => {
-          if (!combined.some((c) => c.id === dbItem.id)) {
-            combined.push(dbItem);
+        // Merge local storage test orders
+        let localChanged = false;
+        (Array.isArray(local) ? local : []).forEach((loc: any) => {
+          const matchesCustomer = 
+            !loc.customerId || 
+            loc.customerId === userObj.id || 
+            (userObj.email && loc.customerEmail?.toLowerCase() === userObj.email.toLowerCase()) ||
+            userObj.role === "CUSTOMER";
+
+          if (matchesCustomer) {
+            const existingIdx = combined.findIndex((c) => c.id === loc.id);
+            if (existingIdx === -1) {
+              combined.push({
+                id: loc.id,
+                date: loc.date || "Recent",
+                modder: loc.modder || "@Modder",
+                service: loc.service || loc.keyboardModel || "Keyboard Modding Service",
+                totalPrice: loc.totalPrice || 0,
+                status: loc.status || "PAID_WAITING_MODDER",
+                statusLabel: loc.status === "SHIPPED_BACK" 
+                  ? "BUILD FINISHED • READY TO SEND / PICKUP" 
+                  : (loc.statusLabel || (loc.status || "").replace(/_/g, " ")),
+                badgeClass: loc.status === "SUCCESS" 
+                  ? "bg-green-50 text-green-700 border-green-600" 
+                  : loc.status === "SHIPPED_BACK"
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-600 font-black"
+                  : "bg-blue-50 text-blue-700 border-blue-600",
+              });
+            } else {
+              // Live DB order exists: sync the live status into the local copy
+              if (loc.status !== combined[existingIdx].status) {
+                loc.status = combined[existingIdx].status;
+                localChanged = true;
+              }
+            }
           }
         });
+
+        if (localChanged) {
+          try {
+            localStorage.setItem("switchlab_orders", JSON.stringify(local));
+          } catch (e) {}
+        }
+
         setOrders(combined);
       } catch (e) {
         setOrders([]);

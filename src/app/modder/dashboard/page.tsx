@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { api, syncAuthCookies } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
-import { EditProfileModal } from "@/components/EditProfileModal";
 
 interface ModderJob {
   id: string;
@@ -46,7 +45,6 @@ export default function ModderDashboardPage() {
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED" | "SERVICES">("ACTIVE");
   const [myServices, setMyServices] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -525,13 +523,12 @@ export default function ModderDashboardPage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 bg-white text-slate-800 shadow-xs">
                   📍 Studio: {currentUser?.locationCity || "Jakarta, Indonesia"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowEditProfile(true)}
-                  className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 bg-amber-400 hover:bg-amber-300 text-slate-950 transition-colors cursor-pointer"
+                <Link
+                  href="/profile"
+                  className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 bg-amber-400 hover:bg-amber-300 text-slate-950 transition-colors cursor-pointer inline-flex items-center gap-1"
                 >
                   ✏️ Edit Profile & Location
-                </button>
+                </Link>
                 <Link
                   href="/modder/create-listing"
                   className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 bg-emerald-400 hover:bg-emerald-300 text-slate-950 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
@@ -1022,17 +1019,6 @@ export default function ModderDashboardPage() {
           </div>
         )}
       </div>
-
-      {/* Edit Profile & Studio Location Modal */}
-      <EditProfileModal
-        isOpen={showEditProfile}
-        onClose={() => setShowEditProfile(false)}
-        onProfileUpdated={(updated) => {
-          setCurrentUser(updated);
-          if (updated.name) setModderName(updated.name);
-          showToast(`Studio profile updated! Workshop location set to ${updated.locationCity}.`);
-        }}
-      />
     </div>
   );
 }

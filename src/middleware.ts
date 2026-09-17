@@ -104,7 +104,16 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 5. Auth Pages (/login, /register) - Redirect already logged in users immediately!
+  // 5. Profile & Settings (/profile/:path*)
+  if (pathname.startsWith("/profile")) {
+    if (!isAuthenticated) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // 6. Auth Pages (/login, /register) - Redirect already logged in users immediately!
   if (pathname === "/login" || pathname === "/register") {
     if (isAuthenticated) {
       const redirectTarget = request.nextUrl.searchParams.get("redirect");
@@ -140,6 +149,7 @@ export const config = {
     "/modder/:path*",
     "/admin/:path*",
     "/orders/:path*",
+    "/profile/:path*",
     "/cart",
     "/login",
     "/register",

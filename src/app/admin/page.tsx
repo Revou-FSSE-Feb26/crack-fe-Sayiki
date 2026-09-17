@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 interface PendingPayment {
   id: string;
@@ -132,6 +133,7 @@ export default function AdminDashboardPage() {
 
   const handleApprove = async (id: string) => {
     setActionLoading(id + "_approve");
+    const p = payments.find((item) => item.id === id);
 
     // Optimistically update UI immediately
     setPayments((prev) =>
@@ -152,6 +154,25 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {}
 
+    // Notify Customer and Modder
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "PAYMENT",
+      title: "💰 Payment Verified & Locked in Escrow",
+      message: `Admin verified your payment of Rp ${(p?.totalToVerify || 0).toLocaleString()} for Order #${id}. Modder has been notified to accept your build!`,
+      orderId: id,
+      link: `/orders/${id}`,
+    });
+
+    addNotification({
+      targetRole: "MODDER",
+      type: "ORDER",
+      title: "⚡ Escrow Secured - Job Ready to Accept",
+      message: `Payment for Order #${id} is verified in Escrow. You can now accept this job in your Workbench!`,
+      orderId: id,
+      link: "/modder/dashboard",
+    });
+
     try {
       await api.orders.update(id, { status: "PAID_WAITING_MODDER" }).catch(() => null);
       showToast("Payment Approved! Order status updated to PAID_WAITING_MODDER. Funds locked in Escrow.");
@@ -167,6 +188,16 @@ export default function AdminDashboardPage() {
     setPayments((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "REJECTED" } : p))
     );
+
+    // Notify Customer
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "PAYMENT",
+      title: "⚠️ Payment Proof Rejected",
+      message: `Payment proof for Order #${id} could not be matched with bank mutasi. Please check transfer details and re-upload.`,
+      orderId: id,
+      link: `/orders/${id}`,
+    });
 
     try {
       await api.orders.update(id, { status: "UNPAID" }).catch(() => null);

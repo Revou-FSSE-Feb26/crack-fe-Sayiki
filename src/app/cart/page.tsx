@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { api } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 interface CartItem {
   id: number;
@@ -162,6 +163,36 @@ export default function CartPage() {
       };
       localStorage.setItem("switchlab_orders", JSON.stringify([newOrder, ...existingOrders]));
     } catch (e) {}
+
+    // Dispatch notifications to Customer, Admin, and Modder
+    addNotification({
+      targetRole: "CUSTOMER",
+      targetUserId: customerId,
+      type: "ORDER",
+      title: "🧾 Order Placed & Payment Uploaded",
+      message: `Order #${orderId} (Rp ${exactTransferTotal.toLocaleString()}) submitted for admin escrow verification.`,
+      orderId: orderId,
+      link: `/orders/${orderId}`,
+    });
+
+    addNotification({
+      targetRole: "ADMIN",
+      type: "PAYMENT",
+      title: "🔍 New Payment Proof to Verify",
+      message: `Order #${orderId} (Rp ${exactTransferTotal.toLocaleString()}) transfer proof uploaded by customer.`,
+      orderId: orderId,
+      link: "/admin",
+    });
+
+    addNotification({
+      targetRole: "MODDER",
+      targetUserId: modderId,
+      type: "ORDER",
+      title: "📦 New Incoming Escrow Booking",
+      message: `Order #${orderId} placed with Escrow protection. Awaiting admin payment approval.`,
+      orderId: orderId,
+      link: "/modder/dashboard",
+    });
 
     // Empty cart
     syncCart([]);

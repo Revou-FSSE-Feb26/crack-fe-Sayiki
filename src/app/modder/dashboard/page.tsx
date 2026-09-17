@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 interface ModderJob {
   id: string;
@@ -203,6 +204,16 @@ export default function ModderDashboardPage() {
       }
     } catch (e) {}
 
+    // Notify Customer
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "WORKBENCH",
+      title: "🛠️ Modder Accepted Your Job!",
+      message: `Modder accepted Order #${jobId}. Please prepare and dispatch or drop off your keyboard to the studio!`,
+      orderId: jobId,
+      link: `/orders/${jobId}`,
+    });
+
     try {
       await api.orders.update(jobId, { status: nextStatus }).catch(() => null);
       showToast("✓ Booking Accepted! Customer notified to drop off or ship their keyboard.");
@@ -242,6 +253,25 @@ export default function ModderDashboardPage() {
         }
       }
     } catch (e) {}
+
+    // Notify Customer and Admin
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "ORDER",
+      title: "⚠️ Order Marked Under Dispute",
+      message: `Order #${jobId} was declined by modder. Escrow funds are flagged for admin refund.`,
+      orderId: jobId,
+      link: `/orders/${jobId}`,
+    });
+
+    addNotification({
+      targetRole: "ADMIN",
+      type: "PAYOUT",
+      title: "⚠️ Modder Cancelled Order",
+      message: `Order #${jobId} was marked as UNDER_DISPUTE by modder. Escrow resolution required.`,
+      orderId: jobId,
+      link: "/admin",
+    });
 
     try {
       await api.orders.update(jobId, { status: "UNDER_DISPUTE" }).catch(() => null);
@@ -292,6 +322,16 @@ export default function ModderDashboardPage() {
         }
       }
     } catch (e) {}
+
+    // Notify Customer
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "WORKBENCH",
+      title: "📥 Keyboard Received on Workbench",
+      message: `Your keyboard has arrived safely at the modder's studio for Order #${jobId}. Tuning is now underway!`,
+      orderId: jobId,
+      link: `/orders/${jobId}`,
+    });
 
     try {
       await api.orders.update(jobId, { status: "KEYBOARD_IN_MODDER_HAND" }).catch(() => null);
@@ -347,6 +387,16 @@ export default function ModderDashboardPage() {
         }
       }
     } catch (e) {}
+
+    // Notify Customer
+    addNotification({
+      targetRole: "CUSTOMER",
+      type: "WORKBENCH",
+      title: "🚀 Build Finished & Ready!",
+      message: `Modder finished tuning Order #${selectedJob.id} (${trackingCode}). Sound test your board and release escrow!`,
+      orderId: selectedJob.id,
+      link: `/orders/${selectedJob.id}`,
+    });
 
     try {
       await api.orders.update(selectedJob.id, {

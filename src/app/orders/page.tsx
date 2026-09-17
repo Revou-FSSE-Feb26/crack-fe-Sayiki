@@ -132,6 +132,15 @@ export default function OrdersPage() {
           } catch (e) {}
         }
 
+        // Sort: Active orders on top, completed/SUCCESS orders at the bottom ("di bawah")
+        combined.sort((a, b) => {
+          const aDone = a.status === "SUCCESS";
+          const bDone = b.status === "SUCCESS";
+          if (aDone && !bDone) return 1;
+          if (!aDone && bDone) return -1;
+          return 0;
+        });
+
         setOrders(combined);
       } catch (e) {
         setOrders([]);
@@ -142,7 +151,60 @@ export default function OrdersPage() {
     loadCustomerOrders();
   }, []);
 
-  const totalProtectedFunds = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  const activeOrders = orders.filter((o) => o.status !== "SUCCESS");
+  const completedOrders = orders.filter((o) => o.status === "SUCCESS");
+  const totalProtectedFunds = activeOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+  const renderOrderCard = (order: OrderSummary, isCompleted: boolean = false) => (
+    <div
+      key={order.id}
+      className={`border-2 border-slate-900 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${
+        isCompleted
+          ? "bg-slate-50/90 hover:border-slate-700 opacity-95"
+          : "bg-brand-sidebar hover:border-brand-navy shadow-sm"
+      }`}
+    >
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-mono font-extrabold text-base text-brand-textMain">
+            Order #{order.id}
+          </span>
+          <span className="text-xs font-mono text-brand-textMuted">
+            {isCompleted ? `Completed on ${order.date}` : `Placed on ${order.date}`}
+          </span>
+          <span className={`inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 ${order.badgeClass}`}>
+            [ {order.statusLabel} ]
+          </span>
+        </div>
+
+        <h3 className="font-bold text-lg text-brand-textMain">{order.service}</h3>
+        <p className="text-xs font-mono text-brand-navy font-semibold">
+          Modder: {order.modder}
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto justify-between border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
+        <div className="text-left md:text-right">
+          <div className="text-xs font-mono text-brand-textMuted uppercase">
+            {isCompleted ? "Total Paid (Released)" : "Total (Held in Escrow)"}
+          </div>
+          <div className={`text-xl font-mono font-extrabold ${isCompleted ? "text-slate-700" : "text-brand-navy"}`}>
+            Rp {order.totalPrice.toLocaleString()}
+          </div>
+        </div>
+
+        <Link href={`/orders/${order.id}`} className="w-full sm:w-auto">
+          <Button
+            variant={isCompleted ? "secondary" : "primary"}
+            isLoading={false}
+            className="whitespace-nowrap px-5"
+          >
+            {isCompleted ? "View Escrow Receipt →" : "View Live Tracker →"}
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-brand-lightBg">
@@ -167,7 +229,7 @@ export default function OrdersPage() {
               <div>
                 <div className="text-xs font-mono text-brand-textMuted uppercase">Active Escrow</div>
                 <div className="text-xl font-mono font-bold text-brand-navy">
-                  {loading ? "..." : `${orders.length} ${orders.length === 1 ? "Order" : "Orders"}`}
+                  {loading ? "..." : `${activeOrders.length} ${activeOrders.length === 1 ? "Active" : "Active"}`}
                 </div>
               </div>
               <div className="border-l-2 border-slate-300 pl-6">
@@ -258,47 +320,36 @@ export default function OrdersPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-brand-sidebar border-2 border-slate-900 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:border-brand-navy transition-colors"
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-mono font-extrabold text-base text-brand-textMain">
-                      Order #{order.id}
-                    </span>
-                    <span className="text-xs font-mono text-brand-textMuted">
-                      Placed on {order.date}
-                    </span>
-                    <span className={`inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 ${order.badgeClass}`}>
-                      [ {order.statusLabel} ]
-                    </span>
-                  </div>
-
-                  <h3 className="font-bold text-lg text-brand-textMain">{order.service}</h3>
-                  <p className="text-xs font-mono text-brand-navy font-semibold">
-                    Modder: {order.modder}
-                  </p>
+          <div className="space-y-8">
+            {/* Active Escrow Orders (Always at the top) */}
+            {activeOrders.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-bold text-xs uppercase tracking-wider text-brand-navy bg-blue-50 border-2 border-brand-navy px-3 py-1">
+                    ⚡ ACTIVE ESCROW ORDERS ({activeOrders.length})
+                  </span>
+                  <div className="h-[2px] bg-slate-300 flex-1" />
                 </div>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto justify-between border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
-                  <div className="text-left md:text-right">
-                    <div className="text-xs font-mono text-brand-textMuted uppercase">Total (Held in Escrow)</div>
-                    <div className="text-xl font-mono font-extrabold text-brand-navy">
-                      Rp {order.totalPrice.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <Link href={`/orders/${order.id}`} className="w-full sm:w-auto">
-                    <Button variant="primary" isLoading={false} className="whitespace-nowrap px-5">
-                      View Live Tracker →
-                    </Button>
-                  </Link>
+                <div className="space-y-4">
+                  {activeOrders.map((order) => renderOrderCard(order, false))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Completed Builds (Always at the bottom: "di bawah") */}
+            {completedOrders.length > 0 && (
+              <div className="pt-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-bold text-xs uppercase tracking-wider text-slate-700 bg-slate-200 border-2 border-slate-400 px-3 py-1">
+                    ✓ COMPLETED & RELEASED BUILDS ({completedOrders.length})
+                  </span>
+                  <div className="h-[2px] bg-slate-300 flex-1" />
+                </div>
+                <div className="space-y-4">
+                  {completedOrders.map((order) => renderOrderCard(order, true))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,8 +1,14 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import {
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  AppNotification,
+} from "@/lib/notifications";
 
 interface UserProfile {
   id: string;
@@ -17,17 +23,33 @@ export function Navbar() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const loadNotifs = (currentUser: UserProfile | null) => {
+    if (!currentUser) {
+      setNotifications([]);
+      return;
+    }
+    const userNotifs = getUserNotifications(currentUser.role, currentUser.id);
+    setNotifications(userNotifs);
+  };
 
   useEffect(() => {
     setMounted(true);
+    let currentUser: UserProfile | null = null;
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        currentUser = JSON.parse(storedUser);
+        setUser(currentUser);
       } catch (e) {
         setUser(null);
       }
     }
+
+    loadNotifs(currentUser);
 
     const updateCart = () => {
       try {
@@ -51,18 +73,53 @@ export function Navbar() {
     // Listen for storage changes across tabs or login/logout/cart events
     const handleAuthChange = () => {
       const updated = localStorage.getItem("user");
-      setUser(updated ? JSON.parse(updated) : null);
+      const parsed = updated ? JSON.parse(updated) : null;
+      setUser(parsed);
+      loadNotifs(parsed);
+    };
+
+    const handleNotifsChange = () => {
+      const stored = localStorage.getItem("user");
+      const parsed = stored ? JSON.parse(stored) : null;
+      loadNotifs(parsed);
+    };
+
+    // Close notifications on click outside
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
     };
 
     window.addEventListener("storage", handleAuthChange);
     window.addEventListener("storage", updateCart);
     window.addEventListener("cart_updated", updateCart);
+    window.addEventListener("notifications_updated", handleNotifsChange);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
       window.removeEventListener("storage", handleAuthChange);
       window.removeEventListener("storage", updateCart);
       window.removeEventListener("cart_updated", updateCart);
+      window.removeEventListener("notifications_updated", handleNotifsChange);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [pathname]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleNotificationClick = (notif: AppNotification) => {
+    markNotificationAsRead(notif.id);
+    setShowNotifs(false);
+    if (notif.link) {
+      router.push(notif.link);
+    }
+  };
+
+  const handleMarkAllRead = () => {
+    if (user) {
+      markAllNotificationsAsRead(user.role);
+    }
+  };
 
   const handleLogout = () => {
     api.auth.logout();
@@ -188,6 +245,96 @@ export function Navbar() {
                   </span>
                 )}
               </Link>
+            )}
+
+            {/* Notification Bell & Dropdown */}
+            {mounted && user && (
+              <div className="relative" ref={notifRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowNotifs(!showNotifs)}
+                  className={`px-3 py-1.5 border-2 transition-all flex items-center gap-1.5 ${
+                    showNotifs || unreadCount > 0
+                      ? "border-brand-navy bg-blue-50 text-brand-navy"
+                      : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
+                  }`}
+                  title="Live Order & Escrow Notifications"
+                >
+                  <span className="text-sm">🔔</span>
+                  <span className="hidden sm:inline text-[11px]">Alerts</span>
+                  {unreadCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-red-600 text-white text-[10px] font-black animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown Panel */}
+                {showNotifs && (
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-brand-sidebar border-2 border-slate-900 shadow-2xl z-50 font-mono text-xs">
+                    <div className="p-3 bg-brand-lightBg border-b-2 border-slate-900 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs uppercase text-brand-textMain">
+                          🔔 Notifications
+                        </span>
+                        {unreadCount > 0 && (
+                          <span className="bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-bold border border-red-300">
+                            {unreadCount} new
+                          </span>
+                        )}
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="text-[10px] text-brand-navy hover:underline font-bold uppercase"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-200">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-xs">
+                          <div className="text-2xl mb-1">📭</div>
+                          No notifications yet
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`p-3 cursor-pointer hover:bg-white transition-colors ${
+                              !n.read ? "bg-amber-50/60 border-l-4 border-l-amber-500" : "bg-brand-sidebar"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-bold text-[11px] text-brand-textMain">
+                                {n.title}
+                              </span>
+                              <span className="text-[9px] text-slate-400 whitespace-nowrap ml-2">
+                                {n.timestamp}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-snug">
+                              {n.message}
+                            </p>
+                            <div className="mt-1.5 flex items-center gap-2 text-[9px] text-brand-navy font-bold uppercase">
+                              <span>➔ View details</span>
+                              {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="p-2 bg-slate-100 border-t border-slate-300 text-center text-[10px] text-slate-500">
+                      Logged in as {user.role}: @{user.name}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Auth Buttons: Toggle between Logged In Profile and Guest Log In / Sign Up */}

@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { api } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -148,6 +149,58 @@ export default function OrderDetailPage() {
       }
       setCurrentStepIndex(4);
       setEscrowReleased(true);
+
+      // Update local storage if present
+      try {
+        const stored = localStorage.getItem("switchlab_orders");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.map((o: any) =>
+              o.id === orderId
+                ? {
+                    ...o,
+                    status: "SUCCESS",
+                    statusLabel: "COMPLETED • ESCROW RELEASED",
+                    badgeClass: "bg-green-50 text-green-700 border-green-600",
+                  }
+                : o
+            );
+            localStorage.setItem("switchlab_orders", JSON.stringify(updated));
+            window.dispatchEvent(new Event("storage"));
+          }
+        }
+      } catch (e) {}
+
+      // Dispatch Notifications to Modder, Admin, and Customer
+      addNotification({
+        targetRole: "MODDER",
+        targetUserId: order?.modderId || order?.modder?.id,
+        type: "PAYOUT",
+        title: "🎉 Escrow Funds Released by Customer!",
+        message: `Customer confirmed sound & feel for Order #${orderId}. Your payout of Rp ${(order?.totalPrice || 0).toLocaleString()} is unlocked!`,
+        orderId: orderId,
+        link: "/modder/dashboard",
+      });
+
+      addNotification({
+        targetRole: "ADMIN",
+        type: "PAYOUT",
+        title: "✅ Escrow Released by Customer",
+        message: `Customer confirmed delivery for Order #${orderId}. Payout is eligible for disbursement in Escrow Vault.`,
+        orderId: orderId,
+        link: "/admin",
+      });
+
+      addNotification({
+        targetRole: "CUSTOMER",
+        targetUserId: order?.customerId,
+        type: "ORDER",
+        title: "✨ Build Received & Escrow Released",
+        message: `You successfully released escrow for Order #${orderId}. Thank you for tuning with SwitchLab!`,
+        orderId: orderId,
+        link: `/orders/${orderId}`,
+      });
     } catch (err) {
       console.warn("Could not update order status in backend:", err);
     } finally {

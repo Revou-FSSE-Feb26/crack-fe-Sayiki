@@ -43,7 +43,8 @@ export default function ModderDashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [dispatchTrackingInput, setDispatchTrackingInput] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
+  const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED" | "SERVICES">("ACTIVE");
+  const [myServices, setMyServices] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
@@ -163,6 +164,20 @@ export default function ModderDashboardPage() {
         if (combined.length > 0) {
           setSelectedJob(combined[0]);
         }
+
+        // Load active services published by this modder
+        try {
+          const allListings = await api.listings.getAll().catch(() => []);
+          if (Array.isArray(allListings)) {
+            const myFiltered = allListings.filter((s: any) => {
+              if (userObj?.id && (s.modderId === userObj.id || s.modder?.id === userObj.id)) return true;
+              if (userObj?.name && s.modder?.name?.toLowerCase() === userObj.name.toLowerCase()) return true;
+              if (userObj?.email && s.modder?.email?.toLowerCase() === userObj.email.toLowerCase()) return true;
+              return false;
+            });
+            setMyServices(myFiltered);
+          }
+        } catch (e) {}
       } catch (err) {
         console.error("Error loading modder jobs:", err);
       } finally {
@@ -170,8 +185,32 @@ export default function ModderDashboardPage() {
       }
     }
 
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("tab") === "services") {
+        setActiveTab("SERVICES");
+      }
+      if (searchParams.get("created") === "true") {
+        showToast("🎉 Service listing published to Marketplace successfully!");
+      }
+    }
+
     loadJobs();
   }, []);
+
+  const handleDeleteService = async (serviceId: string, title: string) => {
+    if (!confirm(`Are you sure you want to remove "${title}" from the marketplace?`)) return;
+    setActionLoading(`del_${serviceId}`);
+    try {
+      await api.listings.delete(serviceId);
+      setMyServices((prev) => prev.filter((s) => s.id !== serviceId));
+      showToast(`Listing "${title}" removed from marketplace.`);
+    } catch (err: any) {
+      alert(err.message || "Failed to remove listing.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleUpdateStage = async (stage: string) => {
     if (!selectedJob) return;
@@ -493,6 +532,12 @@ export default function ModderDashboardPage() {
                 >
                   ✏️ Edit Profile & Location
                 </button>
+                <Link
+                  href="/modder/create-listing"
+                  className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-slate-900 bg-emerald-400 hover:bg-emerald-300 text-slate-950 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                >
+                  ➕ Create Service / Sell
+                </Link>
               </div>
               <h1 className="text-3xl md:text-4xl font-black text-brand-textMain tracking-tight">
                 @{modderName} Studio Workbench
@@ -522,7 +567,7 @@ export default function ModderDashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-6 border-b-2 border-slate-900 pb-2 font-mono text-xs font-bold uppercase">
+        <div className="flex flex-wrap gap-2 mb-6 border-b-2 border-slate-900 pb-2 font-mono text-xs font-bold uppercase">
           <button
             type="button"
             onClick={() => {
@@ -551,9 +596,120 @@ export default function ModderDashboardPage() {
           >
             Completed / Resolved ({completedJobs.length})
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("SERVICES")}
+            className={`px-4 py-2 border-2 transition-all inline-flex items-center gap-1.5 ${
+              activeTab === "SERVICES"
+                ? "bg-brand-navy text-white border-brand-navy"
+                : "bg-white text-slate-700 border-slate-300 hover:border-slate-800"
+            }`}
+          >
+            <span>🏷️ My Services & Listings ({myServices.length})</span>
+          </button>
         </div>
 
-        {loading ? (
+        {activeTab === "SERVICES" ? (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-white border-2 border-slate-900 shadow-xs">
+              <div>
+                <h2 className="font-mono text-sm font-bold uppercase tracking-wider text-brand-textMain">
+                  🏷️ Your Studio Tuning Services & Marketplace Listings ({myServices.length})
+                </h2>
+                <p className="text-xs font-mono text-brand-textMuted mt-0.5">
+                  Published services appear in the Services Catalog and Marketplace for customers to book with Escrow protection.
+                </p>
+              </div>
+              <Link href="/modder/create-listing">
+                <Button variant="primary" className="text-xs uppercase font-bold shrink-0">
+                  ➕ Create New Service Listing →
+                </Button>
+              </Link>
+            </div>
+
+            {myServices.length === 0 ? (
+              <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm">
+                <div className="text-4xl mb-3">🎨</div>
+                <h2 className="text-xl font-black text-brand-textMain mb-2">
+                  No Services Listed in Marketplace Yet
+                </h2>
+                <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
+                  You haven&apos;t listed any custom keyboard tuning services or builds yet. Publish your first listing to start receiving customer orders through SwitchLab&apos;s Escrow platform!
+                </p>
+                <Link href="/modder/create-listing">
+                  <Button variant="primary" className="text-xs uppercase font-bold">
+                    ➕ Create Your First Service Listing →
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myServices.map((service) => (
+                  <div key={service.id} className="bg-white border-2 border-slate-900 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase border border-brand-navy bg-brand-lightBg text-brand-navy">
+                          {service.category?.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[10px] text-emerald-700 font-bold font-mono">
+                          ✓ Live in Marketplace
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-base text-brand-textMain mb-2 leading-tight">
+                        {service.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed font-mono">
+                        {service.description}
+                      </p>
+
+                      <div className="p-3 bg-brand-lightBg border border-slate-200 mb-4">
+                        <div className="text-[10px] uppercase text-brand-textMuted font-mono">Base Price</div>
+                        <div className="text-base font-bold text-brand-navy font-mono">
+                          Rp {Number(service.basePrice || 0).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
+                          Escrow Payout: Rp {Math.round(Number(service.basePrice || 0) * 0.95).toLocaleString()} (95%)
+                        </div>
+                      </div>
+
+                      {service.options && service.options.length > 0 && (
+                        <div className="mb-4">
+                          <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-mono">
+                            Available Upgrades ({service.options.length}):
+                          </span>
+                          <div className="space-y-1">
+                            {service.options.map((opt: any, i: number) => (
+                              <div key={i} className="text-[10px] text-slate-700 flex justify-between font-mono">
+                                <span className="truncate max-w-[170px]">• {opt.optionName}</span>
+                                <span className="font-bold text-slate-900">+Rp {Number(opt.extraPrice || 0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                      <Link href={`/service/${service.id}`} className="text-xs text-brand-navy font-bold hover:underline font-mono">
+                        View Live ↗
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteService(service.id, service.title)}
+                        disabled={actionLoading === `del_${service.id}`}
+                        className="px-2.5 py-1 text-xs font-mono font-bold text-red-600 hover:text-red-800 border border-red-200 hover:border-red-500 bg-red-50 transition-colors uppercase cursor-pointer"
+                      >
+                        {actionLoading === `del_${service.id}` ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : loading ? (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center font-mono text-xs text-brand-textMuted uppercase">
             <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
             <h2 className="text-base font-bold text-brand-textMain">Loading Workbench Queue...</h2>

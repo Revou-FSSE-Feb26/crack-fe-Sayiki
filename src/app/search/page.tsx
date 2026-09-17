@@ -45,8 +45,14 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchInput, setSearchInput] = useState(initialQuery);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) setCurrentUser(JSON.parse(stored));
+    } catch (e) {}
+
     async function loadMarketplaceData() {
       try {
         setLoading(true);
@@ -159,6 +165,28 @@ export default function SearchPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Modder Quick Callout Banner */}
+        {currentUser && (currentUser.role === "MODDER" || currentUser.role === "ADMIN") && (
+          <div className="bg-amber-50 border-2 border-slate-900 mb-8 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">🛠️</span>
+              <div>
+                <span className="font-mono text-xs font-bold uppercase text-amber-950 block">
+                  Modder Studio Marketplace • Sell Your Services & Custom Builds
+                </span>
+                <p className="text-[11px] font-mono text-amber-800">
+                  You are signed in as verified modder @{currentUser.name}. Publish your tuning packages or artisan builds to reach buyers nationwide.
+                </p>
+              </div>
+            </div>
+            <Link href="/modder/create-listing">
+              <Button variant="primary" className="text-xs uppercase font-bold shrink-0">
+                ➕ Create Listing / Sell →
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* Search Bar Container */}
         <div className="max-w-2xl mb-8">
           <div className="relative flex">

@@ -67,8 +67,14 @@ export default function ServicesCatalogPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) setCurrentUser(JSON.parse(stored));
+    } catch (e) {}
+
     async function loadServices() {
       try {
         setLoading(true);
@@ -145,6 +151,28 @@ export default function ServicesCatalogPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Modder Quick Callout Banner */}
+        {currentUser && (currentUser.role === "MODDER" || currentUser.role === "ADMIN") && (
+          <div className="bg-amber-50 border-2 border-slate-900 mb-8 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">🛠️</span>
+              <div>
+                <span className="font-mono text-xs font-bold uppercase text-amber-950 block">
+                  Modder Studio Portal • Offer Your Keyboard Tuning
+                </span>
+                <p className="text-[11px] font-mono text-amber-800">
+                  You are signed in as verified modder @{currentUser.name}. Publish a new tuning service to appear in this catalog.
+                </p>
+              </div>
+            </div>
+            <Link href="/modder/create-listing">
+              <Button variant="primary" className="text-xs uppercase font-bold shrink-0">
+                ➕ Create Service Listing →
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* Filter Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           {/* Category Tabs */}

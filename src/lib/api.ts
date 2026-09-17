@@ -160,5 +160,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    delete: (id: string) =>
+      apiFetch<any>(`/listings/${id}`, {
+        method: 'DELETE',
+      }),
   },
 };

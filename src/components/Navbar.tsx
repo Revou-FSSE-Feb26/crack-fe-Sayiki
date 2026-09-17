@@ -179,7 +179,7 @@ export function Navbar() {
               {mounted && user && (
                 <Link
                   href="/orders"
-                  className={`px-3 py-1.5 border-2 transition-all font-bold ${
+                  className={`px-3 py-1.5 border-2 transition-all font-bold shrink-0 whitespace-nowrap ${
                     isRouteActive("/orders")
                       ? "bg-brand-navy text-white border-brand-navy"
                       : "border-transparent text-slate-600 hover:text-brand-navy hover:border-slate-300"
@@ -189,49 +189,47 @@ export function Navbar() {
                 </Link>
               )}
             </div>
-
-            {/* Role-Gated Portals: ONLY visible when logged in with appropriate role */}
-            {mounted && user && (
-              <div className="hidden lg:flex items-center gap-2 border-l-2 border-slate-200 pl-4 font-mono text-[11px]">
-                {/* Modder Studio Workbench: ONLY for MODDER or ADMIN */}
-                {(user.role === "MODDER" || user.role === "ADMIN") && (
-                  <Link
-                    href="/modder/dashboard"
-                    className={`px-2.5 py-1 border-2 transition-all font-bold flex items-center gap-1.5 ${
-                      isRouteActive("/modder")
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "border-slate-800 bg-slate-50 text-slate-800 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span>🛠️ Workbench</span>
-                  </Link>
-                )}
-
-                {/* Admin Vault: ONLY for ADMIN */}
-                {user.role === "ADMIN" && (
-                  <Link
-                    href="/admin"
-                    className={`px-2.5 py-1 border-2 transition-all font-bold flex items-center gap-1.5 ${
-                      isRouteActive("/admin")
-                        ? "bg-brand-navy text-white border-brand-navy"
-                        : "border-brand-navy bg-blue-50 text-brand-navy hover:bg-blue-100"
-                    }`}
-                  >
-                    <span>🛡️ Escrow Vault</span>
-                  </Link>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Right Action Group */}
-          {/* Right Action Group */}
-          <div className="flex items-center gap-2.5 font-mono text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2 md:gap-2.5 font-mono text-xs font-bold uppercase tracking-wider shrink-0">
+            {/* Modder Studio Workbench: ONLY for MODDER or ADMIN */}
+            {mounted && user && (user.role === "MODDER" || user.role === "ADMIN") && (
+              <Link
+                href="/modder/dashboard"
+                className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 box-border ${
+                  isRouteActive("/modder")
+                    ? "bg-amber-400 text-slate-950 border-slate-900 shadow-xs"
+                    : "border-slate-900 bg-white text-slate-900 hover:bg-amber-100"
+                }`}
+                title="Modder Live Workbench"
+              >
+                <span className="text-sm leading-none">🛠️</span>
+                <span className="leading-none">Workbench</span>
+              </Link>
+            )}
+
+            {/* Admin Vault: ONLY for ADMIN */}
+            {mounted && user && user.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 box-border ${
+                  isRouteActive("/admin")
+                    ? "bg-brand-navy text-white border-brand-navy shadow-xs"
+                    : "border-brand-navy bg-blue-50 text-brand-navy hover:bg-blue-100"
+                }`}
+                title="Admin Escrow Vault"
+              >
+                <span className="text-sm leading-none">🛡️</span>
+                <span className="leading-none">Admin Vault</span>
+              </Link>
+            )}
+
             {/* Cart Button: ONLY visible when logged in */}
             {mounted && user && (
               <Link
                 href="/cart"
-                className={`h-9 px-3 border-2 transition-colors inline-flex items-center justify-center gap-1.5 box-border ${
+                className={`h-9 px-3 border-2 transition-colors inline-flex items-center justify-center gap-1.5 box-border shrink-0 whitespace-nowrap ${
                   isRouteActive("/cart")
                     ? "bg-brand-navy text-white border-brand-navy"
                     : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
@@ -259,7 +257,7 @@ export function Navbar() {
                 <button
                   type="button"
                   onClick={() => setShowNotifs(!showNotifs)}
-                  className={`h-9 px-3 border-2 transition-all inline-flex items-center justify-center gap-1.5 box-border ${
+                  className={`h-9 px-3 border-2 transition-all inline-flex items-center justify-center gap-1.5 box-border shrink-0 whitespace-nowrap ${
                     showNotifs || unreadCount > 0
                       ? "border-brand-navy bg-blue-50 text-brand-navy"
                       : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"

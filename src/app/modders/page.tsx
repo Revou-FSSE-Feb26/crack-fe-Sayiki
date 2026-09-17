@@ -3,152 +3,17 @@ import { Button } from "@/components/Button";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 
-// Sample modder data with rich profile information
-const moddersData = [
-  {
-    id: 1,
-    username: '@DexterKeyboards',
-    displayName: 'DexterKeyboards',
-    avatar: '/images/lubing-swtiches.webp',
-    status: 'accepting', // accepting, queue_full, on_break
-    rating: 4.9,
-    totalOrders: 142,
-    location: {
-      city: 'Depok',
-      province: 'West Java'
-    },
-    specialties: ['Lubing & Tuning', 'Solder', 'Stabilizers'],
-    lubingStyle: 'Hand-Lubed (Krytox)',
-    equipment: ['Soldering Iron', 'Ultrasonic Cleaner', 'Switch Opener'],
-    turnaroundTime: 'Standard (3-5 days)',
-    soundTest: {
-      title: 'Neo80 Linear Build',
-      duration: '0:45'
-    },
-    isVerified: true
-  },
-  {
-    id: 2,
-    username: '@ClackSmiths',
-    displayName: 'ClackSmiths',
-    avatar: '/images/stabs.webp',
-    status: 'accepting',
-    rating: 4.8,
-    totalOrders: 89,
-    location: {
-      city: 'Bandung',
-      province: 'West Java'
-    },
-    specialties: ['Lubing & Tuning', 'Hall Effect/HE'],
-    lubingStyle: 'Hand-Lubed (Tribosys)',
-    equipment: ['Hall Effect Tester', 'Switch Films'],
-    turnaroundTime: 'Express (1-2 days)',
-    soundTest: {
-      title: 'Wooting HE Build',
-      duration: '1:12'
-    },
-    isVerified: true
-  },
-  {
-    id: 3,
-    username: '@KeyboardClinic',
-    displayName: 'Keyboard Clinic',
-    avatar: '/images/repair-kb.png',
-    status: 'queue_full',
-    rating: 4.7,
-    totalOrders: 203,
-    location: {
-      city: 'Jakarta',
-      province: 'DKI Jakarta'
-    },
-    specialties: ['Solder/Desolder', 'Repair', 'Stabilizers'],
-    lubingStyle: 'Machine-Lubed',
-    equipment: ['Desoldering Station', 'PCB Repair Kit', 'Hotswap Sockets'],
-    turnaroundTime: 'Standard (5-7 days)',
-    soundTest: {
-      title: 'Restored Vintage AT101',
-      duration: '0:38'
-    },
-    isVerified: true
-  },
-  {
-    id: 4,
-    username: '@SwitchMaster',
-    displayName: 'SwitchMaster',
-    avatar: '/images/switches.jpg',
-    status: 'accepting',
-    rating: 4.9,
-    totalOrders: 156,
-    location: {
-      city: 'Yogyakarta',
-      province: 'Special Region of Yogyakarta'
-    },
-    specialties: ['Lubing & Tuning', 'Custom Builds'],
-    lubingStyle: 'Hand-Lubed (Krytox)',
-    equipment: ['Switch Opener', 'Lube Station', 'Films Collection'],
-    turnaroundTime: 'Express (2-3 days)',
-    soundTest: {
-      title: 'Tactile Perfection',
-      duration: '0:52'
-    },
-    isVerified: true
-  },
-  {
-    id: 5,
-    username: '@ModHouse',
-    displayName: 'ModHouse',
-    avatar: '/images/prebuilt-kb.webp',
-    status: 'on_break',
-    rating: 4.6,
-    totalOrders: 67,
-    location: {
-      city: 'Surabaya',
-      province: 'East Java'
-    },
-    specialties: ['Custom Builds', 'Foam Mods'],
-    lubingStyle: 'Hand-Lubed (205g0)',
-    equipment: ['Foam Cutting Tools', 'Case Mods'],
-    turnaroundTime: 'Standard (4-6 days)',
-    soundTest: {
-      title: 'Gasket Mount Perfection',
-      duration: '1:05'
-    },
-    isVerified: false
-  },
-  {
-    id: 6,
-    username: '@TactileTuner',
-    displayName: 'Tactile Tuner',
-    avatar: '/images/lubing-swtiches.webp',
-    status: 'accepting',
-    rating: 4.8,
-    totalOrders: 94,
-    location: {
-      city: 'Medan',
-      province: 'North Sumatra'
-    },
-    specialties: ['Lubing & Tuning', 'Tactile Specialists'],
-    lubingStyle: 'Hand-Lubed (Tribosys)',
-    equipment: ['Tactile Switch Collection', 'Precision Tools'],
-    turnaroundTime: 'Standard (3-5 days)',
-    soundTest: {
-      title: 'Holy Panda Perfection',
-      duration: '0:41'
-    },
-    isVerified: true
-  }
-];
-
 type FilterState = {
   location: string[];
   specialties: string[];
   status: string[];
   lubingStyle: string[];
   equipment: string[];
-}
+};
 
 export default function ModdersDirectoryPage() {
-  const [modders, setModders] = useState(moddersData);
+  const [modders, setModders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<FilterState>({
@@ -191,11 +56,16 @@ export default function ModdersDirectoryPage() {
         }
       })
       .catch((err) => {
-        console.warn('Backend fetch failed, using local directory fallback:', err);
+        console.warn('Backend fetch failed:', err);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
-  const locations = ['Depok', 'Jakarta', 'Bandung', 'Yogyakarta', 'Surabaya', 'Medan'];
+  const locations = Array.from(
+    new Set([...modders.map((m) => m.location.city), 'Depok', 'Bandung', 'Jakarta'])
+  );
   const specialties = ['Lubing & Tuning', 'Soldering', 'Hall Effect/HE', 'Solder/Desolder', 'Repair', 'Stabilizers', 'Custom Builds', 'Foam Mods'];
   const statuses = ['Accepting Work', 'Queue Full', 'On Break'];
   const lubingStyles = ['Hand-Lubed (Krytox)', 'Hand-Lubed (Tribosys)', 'Hand-Lubed (205g0)', 'Machine-Lubed'];
@@ -204,13 +74,13 @@ export default function ModdersDirectoryPage() {
   const filteredModders = modders.filter(modder => {
     const matchesSearch = modder.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       modder.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      modder.specialties.some(spec => spec.toLowerCase().includes(searchQuery.toLowerCase()));
+      modder.specialties.some((spec: string) => spec.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesLocation = filters.location.length === 0 || filters.location.includes(modder.location.city);
-    const matchesSpecialties = filters.specialties.length === 0 || filters.specialties.some(spec => modder.specialties.includes(spec));
+    const matchesSpecialties = filters.specialties.length === 0 || filters.specialties.some((spec: string) => modder.specialties.includes(spec));
     const matchesStatus = filters.status.length === 0 || filters.status.includes(getStatusLabel(modder.status));
     const matchesLubingStyle = filters.lubingStyle.length === 0 || filters.lubingStyle.includes(modder.lubingStyle);
-    const matchesEquipment = filters.equipment.length === 0 || filters.equipment.some(eq => modder.equipment.includes(eq));
+    const matchesEquipment = filters.equipment.length === 0 || filters.equipment.some((eq: string) => modder.equipment.includes(eq));
 
     return matchesSearch && matchesLocation && matchesSpecialties && matchesStatus && matchesLubingStyle && matchesEquipment;
   });

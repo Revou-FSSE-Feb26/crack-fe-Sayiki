@@ -1,340 +1,398 @@
 "use client";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/Button";
-import { useState } from "react";
+import { api } from "@/lib/api";
 
-// Sample data following the design guidelines with real images
-const serviceListings = [
-  {
-    id: 1,
-    type: 'service',
-    title: 'Linear Switch Lubing & Filming',
-    provider: '@DexterKeyboards',
-    rating: 4.9,
-    pricing: 'Rp 3,500 / switch',
-    badge: 'SERVICE',
-    badgeColor: 'bg-brand-lightBg text-brand-navy border-brand-navy',
-    image: '/images/lubing-swtiches.webp',
-    buttonText: 'Book Service'
-  },
-  {
-    id: 2,
-    type: 'service', 
-    title: 'Stabilizer Tuning & Band-Aid Mod',
-    provider: '@KeyboardClinic',
-    rating: 4.8,
-    pricing: 'From Rp 150,000',
-    badge: 'SERVICE',
-    badgeColor: 'bg-brand-lightBg text-brand-navy border-brand-navy',
-    image: '/images/stabs.webp',
-    buttonText: 'Book Service'
-  },
-  {
-    id: 3,
-    type: 'service',
-    title: 'Custom Plate Foam Installation', 
-    provider: '@ModHouse',
-    rating: 4.7,
-    pricing: 'Rp 75,000 / board',
-    badge: 'SERVICE',
-    badgeColor: 'bg-brand-lightBg text-brand-navy border-brand-navy',
-    image: '/images/foam.jpg',
-    buttonText: 'View Details'
+const getCategoryFallbackImage = (category?: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "/images/lubing-swtiches.webp";
+    case "STABILIZER_MODS":
+      return "/images/stabs.webp";
+    case "CASE_AND_ACOUSTIC":
+      return "/images/foam.jpg";
+    case "CUSTOMIZATION_AESTHETICS":
+    default:
+      return "/images/repair-kb.png";
   }
-];
+};
 
-const productListings = [
-  {
-    id: 4,
-    type: 'product',
-    title: '70x Pre-Lubed Gateron V1 Switches',
-    provider: '@DexterKeyboards',
-    rating: 4.9,
-    pricing: 'Rp 450,000',
-    badge: 'READY STOCK',
-    badgeColor: 'bg-green-50 text-green-700 border-green-600',
-    image: '/images/switches.jpg',
-    buttonText: 'Add to Cart'
-  },
-  {
-    id: 5,
-    type: 'product',
-    title: 'Hand-lubed Cherry MX Black (x87)',
-    provider: '@SwitchMaster',
-    rating: 4.9,
-    pricing: 'Rp 520,000',
-    badge: 'READY STOCK', 
-    badgeColor: 'bg-green-50 text-green-700 border-green-600',
-    image: '/images/switches.jpg',
-    buttonText: 'Add to Cart'
-  },
-  {
-    id: 6,
-    type: 'product',
-    title: 'Custom Artisan Cable - Coiled',
-    provider: '@CableWorks',
-    rating: 4.8,
-    pricing: 'Rp 320,000',
-    badge: 'ITEM',
-    badgeColor: 'bg-green-50 text-green-700 border-green-600', 
-    image: '/images/prebuilt-kb.webp',
-    buttonText: 'Add to Cart'
-  }
-];
-
-const categories = [
-  { name: "Lubing & Tuning", count: 24, description: "Switch and stabilizer services" },
-  { name: "Custom Pre-builts", count: 18, description: "Ready-to-use keyboards" }, 
-  { name: "Lubed Switches & Parts", count: 32, description: "Components and modifications" },
-  { name: "Soldering/Repair", count: 12, description: "PCB and component repair" },
-];
-
-const topModders = [
-  { name: "@DexterKeyboards", location: "Jakarta Selatan", specialty: "Linear Switch Specialist", rating: 4.9, jobs: 127 },
-  { name: "@KeyboardClinic", location: "Bandung", specialty: "Stabilizer Tuning Expert", rating: 4.8, jobs: 89 },
-  { name: "@ModHouse", location: "Surabaya", specialty: "Custom Builds & Mods", rating: 4.7, jobs: 156 },
-  { name: "@SwitchMaster", location: "Yogyakarta", specialty: "Lubing & Filming", rating: 4.9, jobs: 203 },
-];
+const formatCategoryBadge = (category: string) => {
+  return category.replace(/_/g, " ");
+};
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
-  
+  const [services, setServices] = useState<any[]>([]);
+  const [portfolios, setPortfolios] = useState<any[]>([]);
+  const [modders, setModders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [servicesRes, moddersRes] = await Promise.all([
+          api.listings.getAll().catch(() => []),
+          api.modders.getAll().catch(() => []),
+        ]);
+
+        const servicesData = Array.isArray(servicesRes) ? servicesRes : [];
+        const moddersData = Array.isArray(moddersRes) ? moddersRes : [];
+
+        setServices(servicesData);
+        setPortfolios(moddersData);
+
+        // Deduplicate modders from database
+        const modderMap = new Map();
+        moddersData.forEach((item: any) => {
+          if (item.modder && !modderMap.has(item.modder.id)) {
+            modderMap.set(item.modder.id, {
+              ...item.modder,
+              specialty: item.title,
+            });
+          }
+        });
+
+        // Also add modders from services if not yet present
+        servicesData.forEach((item: any) => {
+          if (item.modder && !modderMap.has(item.modder.id)) {
+            modderMap.set(item.modder.id, {
+              ...item.modder,
+              specialty: item.title,
+            });
+          }
+        });
+
+        setModders(Array.from(modderMap.values()));
+      } catch (err) {
+        console.error("Error loading home page data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const switchModsCount = services.filter((s) => s.category === "SWITCH_MODS").length;
+  const stabModsCount = services.filter((s) => s.category === "STABILIZER_MODS").length;
+  const acousticCount = services.filter((s) => s.category === "CASE_AND_ACOUSTIC").length;
+  const customCount = services.filter((s) => s.category === "CUSTOMIZATION_AESTHETICS").length;
+
+  const categories = [
+    {
+      name: "Switch Mods & Lubing",
+      count: switchModsCount,
+      description: "Linear & tactile hand-lubing",
+      image: "/images/lubing-swtiches.webp",
+      link: "/services",
+    },
+    {
+      name: "Stabilizer Tuning",
+      count: stabModsCount,
+      description: "Holee, wire balance, ticking fix",
+      image: "/images/stabs.webp",
+      link: "/services",
+    },
+    {
+      name: "Acoustics & Foam",
+      count: acousticCount,
+      description: "Poron, case foam, tape mods",
+      image: "/images/foam.jpg",
+      link: "/services",
+    },
+    {
+      name: "PCB Soldering & Repairs",
+      count: customCount,
+      description: "Mill-Max hotswap & trace fixes",
+      image: "/images/repair-kb.png",
+      link: "/services",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-brand-lightBg">
       {/* Full-Width Hero Section */}
       <div className="w-full relative h-[480px] bg-gradient-to-r from-brand-navy/90 to-brand-navy/70 flex items-center border-b-2 border-slate-900">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-25"
           style={{
-            backgroundImage: `url('/images/hero.jpg')`
+            backgroundImage: `url('/images/hero.jpg')`,
           }}
         />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white w-full">
+          <span className="inline-block px-3 py-1 bg-brand-terracotta text-white font-mono text-xs uppercase font-bold tracking-wider mb-4 border-2 border-slate-900">
+            [ 100% ESCROW PROTECTED WORKBENCH ]
+          </span>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
-            Find Expert Modders &
-            <span className="block">Premium Components</span>
+            Find Verified Keyboard Modders &
+            <span className="block">Escrow-Protected Services</span>
           </h1>
           <p className="text-base md:text-lg text-white/90 max-w-2xl mx-auto mb-8 font-medium">
-            Connect with skilled modders and discover premium switches, keycaps, and custom builds
+            Connect with skilled Indonesian modders. Your funds stay locked in escrow until you verify the audio sound test and feel.
           </p>
-          
+
           {/* Sharp Big Search Bar */}
           <div className="max-w-2xl mx-auto">
             <div className="relative flex">
-              <input 
+              <input
                 type="text"
-                placeholder="Search modders, services, switches..."
+                placeholder="Search modders, switch lubing, stabilizer mods..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-5 py-3.5 pr-28 text-base border-2 border-slate-900 focus:border-brand-navy focus:outline-none bg-white text-brand-textMain placeholder:text-brand-textMuted font-mono"
               />
-              <a 
-                href="/search" 
+              <Link
+                href={`/services`}
                 className="absolute right-1.5 top-1/2 transform -translate-y-1/2 bg-brand-terracotta text-white px-5 py-2 hover:bg-opacity-90 transition-colors font-mono font-bold text-xs uppercase tracking-wider border-2 border-brand-terracotta"
               >
-                Search
-              </a>
+                Browse →
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area with Centered Max-Width */}
+      {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Category Sharp Boxes Section */}
+        {/* Section 1: Browse by Category */}
         <div className="text-center mb-16 pt-12">
           <h2 className="text-2xl font-bold text-brand-textMain mb-2">Browse by Category</h2>
-          <p className="text-sm font-mono text-brand-textMuted uppercase tracking-wider mb-8">Selected Modding Specializations</p>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            {categories.map((category, index) => {
-              const categoryIcons = [
-                '/images/lubing-swtiches.webp', // Lubing & Tuning
-                '/images/prebuilt-kb.webp', // Custom Pre-builts
-                '/images/switches.jpg', // Lubed Switches & Parts
-                '/images/repair-kb.png'  // Soldering/Repair
-              ];
-              
-              return (
-                <div key={category.name} className="bg-brand-sidebar border-2 border-slate-900 p-5 flex flex-col items-center group cursor-pointer hover:border-brand-navy hover:shadow-md transition-all">
-                  <div className="w-16 h-16 bg-brand-lightBg border-2 border-slate-800 flex items-center justify-center group-hover:border-brand-navy transition-colors mb-4 overflow-hidden">
-                    <img 
-                      src={categoryIcons[index]} 
-                      alt={category.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                    />
-                  </div>
-                  <h3 className="text-sm font-bold text-brand-textMain group-hover:text-brand-navy text-center mb-1">
-                    {category.name}
-                  </h3>
-                  <p className="text-xs text-brand-textMuted text-center font-mono">({category.count} items)</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <p className="text-sm font-mono text-brand-textMuted uppercase tracking-wider mb-8">
+            Specialized Keyboard Modding Disciplines
+          </p>
 
-        {/* Section 2: Top Rated Modders Near You */}
-        <div className="mb-16">
-          <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
-            <div>
-              <h2 className="text-2xl font-bold text-brand-textMain">Top Rated Modders Near You</h2>
-              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">Skilled craftsmen verified in your area</p>
-            </div>
-            <a href="/modders" className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline">View all →</a>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {topModders.map((modder) => (
-              <div key={modder.name} className="bg-brand-sidebar border-2 border-slate-900 p-6 hover:shadow-lg transition-all hover:border-brand-navy group">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-brand-lightBg border-2 border-slate-900 mx-auto mb-4 flex items-center justify-center">
-                    <span className="text-xl font-bold font-mono text-brand-navy">{modder.name.charAt(1)}</span>
-                  </div>
-                  <h3 className="font-bold text-brand-textMain group-hover:text-brand-navy transition-colors">{modder.name}</h3>
-                  <p className="text-xs font-mono text-brand-textMuted mb-1">{modder.location}</p>
-                  <p className="text-xs text-brand-terracotta font-semibold mb-3">{modder.specialty}</p>
-                  <div className="flex items-center justify-center gap-1 font-mono text-xs border-t border-slate-200 pt-3">
-                    <span className="text-yellow-500">★</span>
-                    <span className="font-bold text-slate-800">{modder.rating}</span>
-                    <span className="text-brand-textMuted">({modder.jobs} jobs)</span>
-                  </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            {categories.map((category) => (
+              <Link
+                key={category.name}
+                href={category.link}
+                className="bg-brand-sidebar border-2 border-slate-900 p-5 flex flex-col items-center group cursor-pointer hover:border-brand-navy hover:shadow-md transition-all"
+              >
+                <div className="w-16 h-16 bg-brand-lightBg border-2 border-slate-800 flex items-center justify-center group-hover:border-brand-navy transition-colors mb-4 overflow-hidden">
+                  <img
+                    src={category.image}
+                    alt={category.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                  />
                 </div>
-              </div>
+                <h3 className="text-sm font-bold text-brand-textMain group-hover:text-brand-navy text-center mb-1">
+                  {category.name}
+                </h3>
+                <p className="text-xs text-brand-textMuted text-center font-mono">
+                  ({category.count} live service{category.count === 1 ? "" : "s"})
+                </p>
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* Section 3: Popular Modding Services */}
+        {/* Section 2: Top Rated Modders Near You (From Database) */}
+        <div className="mb-16">
+          <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
+            <div>
+              <h2 className="text-2xl font-bold text-brand-textMain">Top Rated Modders</h2>
+              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">
+                Skilled craftsmen verified in the SwitchLab network
+              </p>
+            </div>
+            <Link
+              href="/modders"
+              className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline"
+            >
+              View all modders →
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-8 text-center font-mono text-xs text-brand-textMuted uppercase">
+              Loading verified modders from database...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {modders.map((modder) => (
+                <div
+                  key={modder.id || modder.name}
+                  className="bg-brand-sidebar border-2 border-slate-900 p-6 hover:shadow-lg transition-all hover:border-brand-navy group flex flex-col justify-between"
+                >
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-brand-navy border-2 border-slate-900 mx-auto mb-4 flex items-center justify-center text-white font-black font-mono text-xl">
+                      {modder.name?.charAt(0) || "M"}
+                    </div>
+                    <h3 className="font-bold text-brand-textMain group-hover:text-brand-navy transition-colors">
+                      @{modder.name}
+                    </h3>
+                    <p className="text-xs font-mono text-brand-textMuted mb-1">
+                      📍 {modder.locationCity || "Indonesia"}
+                    </p>
+                    <p className="text-xs text-brand-terracotta font-semibold mb-3">
+                      {modder.specialty || "Keyboard Modder Specialist"}
+                    </p>
+                    <div className="flex items-center justify-center gap-1 font-mono text-xs border-t border-slate-200 pt-3">
+                      <span className="text-yellow-500">★</span>
+                      <span className="font-bold text-slate-800">{modder.avgRating || 4.9}</span>
+                      <span className="text-brand-textMuted font-mono">/ 5.0</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <Link href="/modders" className="block w-full">
+                      <Button variant="secondary" isLoading={false} className="w-full text-xs">
+                        View Studio Profile
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Popular Modding Services (From Database) */}
         <div className="mb-16">
           <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
             <div>
               <h2 className="text-2xl font-bold text-brand-textMain">Popular Modding Services</h2>
-              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">Professional keyboard modification services</p>
+              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">
+                Professional keyboard modification services in database
+              </p>
             </div>
-            <a href="#" className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline">View all →</a>
+            <Link
+              href="/services"
+              className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline"
+            >
+              View catalog →
+            </Link>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {serviceListings.map((service) => (
-              <ServiceCard key={service.id} listing={service} />
-            ))}
-          </div>
+
+          {loading ? (
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-8 text-center font-mono text-xs text-brand-textMuted uppercase">
+              Loading services from database...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {services.map((service) => (
+                <div
+                  key={service.id}
+                  className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="p-4 pb-2">
+                      <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy">
+                        [ {formatCategoryBadge(service.category)} ]
+                      </span>
+                    </div>
+
+                    <div className="px-4 pb-2">
+                      <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
+                        <img
+                          src={getCategoryFallbackImage(service.category)}
+                          alt={service.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-2">
+                      <h3 className="font-bold text-base text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
+                        {service.title}
+                      </h3>
+                      <p className="text-xs font-mono text-brand-textMuted mb-3">
+                        by @{service.modder?.name || "VerifiedModder"} (📍 {service.modder?.locationCity})
+                      </p>
+                      <p className="text-lg font-mono font-bold text-brand-navy mb-4">
+                        Rp {service.basePrice.toLocaleString()}{" "}
+                        <span className="text-xs font-normal text-brand-textMuted">
+                          {service.category === "SWITCH_MODS" ? "/ switch" : "/ board"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 pt-0">
+                    <Link href={`/service/${service.id}`} className="block w-full">
+                      <Button variant="primary" isLoading={false} className="w-full">
+                        Book Service →
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Section 4: Marketplace / Ready Stock Items */}
+        {/* Section 4: Live Workbench Portfolios & Build Gallery (From Database) */}
         <div className="mb-16">
           <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
             <div>
-              <h2 className="text-2xl font-bold text-brand-textMain">Marketplace / Ready Stock Items</h2>
-              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">Hand-lubed switches, custom artisan cables, built-to-order mechanical keyboards</p>
+              <h2 className="text-2xl font-bold text-brand-textMain">Modder Portfolios & Recent Builds</h2>
+              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">
+                Real keyboard builds tuned and documented by verified craftsmen
+              </p>
             </div>
-            <a href="#" className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline">View all →</a>
+            <Link
+              href="/modders"
+              className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline"
+            >
+              Browse all studios →
+            </Link>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {productListings.map((product) => (
-              <ProductCard key={product.id} listing={product} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-// Service Card Component with sharp 2px box and font styling
-function ServiceCard({ listing }: { listing: any }) {
-  return (
-    <div className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between">
-      {/* Top Section */}
-      <div>
-        {/* Top Badge */}
-        <div className="p-4 pb-2">
-          <span className={`inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 ${listing.badgeColor}`}>
-            [ {listing.badge} ]
-          </span>
-        </div>
-        
-        {/* Image Area */}
-        <div className="px-4 pb-2">
-          <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
-            <img 
-              src={listing.image} 
-              alt={listing.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </div>
-        </div>
-        
-        {/* Content */}
-        <div className="p-4 pt-2">
-          <h3 className="font-bold text-base text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
-            {listing.title}
-          </h3>
-          <p className="text-xs font-mono text-brand-textMuted mb-3">
-            by {listing.provider} ({listing.rating}★)
-          </p>
-          <p className="text-lg font-mono font-bold text-brand-navy mb-4">
-            {listing.pricing}
-          </p>
-        </div>
-      </div>
+          {loading ? (
+            <div className="bg-brand-sidebar border-2 border-slate-900 p-8 text-center font-mono text-xs text-brand-textMuted uppercase">
+              Loading portfolio gallery from database...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {portfolios.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="p-4 pb-2">
+                      <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-green-600 bg-green-50 text-green-700">
+                        [ VERIFIED WORKBENCH BUILD ]
+                      </span>
+                    </div>
 
-      <div className="p-4 pt-0">
-        <a href={`/service/${listing.id}`} className="block w-full">
-          <Button variant="primary" isLoading={false} className="w-full">
-            {listing.buttonText} →
-          </Button>
-        </a>
-      </div>
-    </div>
-  );
-}
+                    <div className="px-4 pb-2">
+                      <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
+                        <img
+                          src={`/images/${idx % 2 === 0 ? "lubing-swtiches.webp" : "stabs.webp"}`}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    </div>
 
-// Product Card Component with sharp 2px box and font styling
-function ProductCard({ listing }: { listing: any }) {
-  return (
-    <div className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between">
-      {/* Top Section */}
-      <div>
-        {/* Top Badge */}
-        <div className="p-4 pb-2">
-          <span className={`inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 ${listing.badgeColor}`}>
-            [ {listing.badge} ]
-          </span>
-        </div>
-        
-        {/* Image Area */}
-        <div className="px-4 pb-2">
-          <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
-            <img 
-              src={listing.image} 
-              alt={listing.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </div>
-        </div>
-        
-        {/* Content */}
-        <div className="p-4 pt-2">
-          <h3 className="font-bold text-base text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
-            {listing.title}
-          </h3>
-          <p className="text-xs font-mono text-brand-textMuted mb-3">
-            by {listing.provider} ({listing.rating}★)
-          </p>
-          <p className="text-lg font-mono font-bold text-brand-navy mb-4">
-            {listing.pricing}
-          </p>
-        </div>
-      </div>
+                    <div className="p-4 pt-2">
+                      <h3 className="font-bold text-base text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-brand-textMuted mb-2 line-clamp-2">
+                        {item.description}
+                      </p>
+                      <p className="text-xs font-mono text-brand-navy font-semibold">
+                        Modder: @{item.modder?.name || "StudioModder"} • 📍 {item.modder?.locationCity}
+                      </p>
+                    </div>
+                  </div>
 
-      <div className="p-4 pt-0">
-        <a href={`/product/${listing.id}`} className="block w-full">
-          <Button variant="primary" isLoading={false} className="w-full">
-            {listing.buttonText} →
-          </Button>
-        </a>
+                  <div className="p-4 pt-0">
+                    <Link href="/modders" className="block w-full">
+                      <Button variant="secondary" isLoading={false} className="w-full text-xs">
+                        View Modder Studio →
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

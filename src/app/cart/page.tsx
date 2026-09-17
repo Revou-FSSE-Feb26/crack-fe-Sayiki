@@ -153,9 +153,9 @@ export default function CartPage() {
         shippingFee: shippingFee,
         deliveryMethod: deliveryMethod,
         keyboardModel: items[0]?.title || "Custom Mechanical Keyboard",
-        status: "PAID_WAITING_MODDER",
-        statusLabel: "FUNDS IN ESCROW • AWAITING MODDER ACCEPTANCE",
-        badgeClass: "bg-blue-50 text-blue-700 border-blue-600",
+        status: "PENDING_ADMIN_VERIFICATION",
+        statusLabel: "AWAITING ADMIN ESCROW VERIFICATION",
+        badgeClass: "bg-amber-50 text-amber-800 border-amber-500",
       };
       localStorage.setItem("switchlab_orders", JSON.stringify([newOrder, ...existingOrders]));
     } catch (e) {}

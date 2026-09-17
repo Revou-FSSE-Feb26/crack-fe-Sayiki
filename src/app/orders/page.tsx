@@ -202,7 +202,7 @@ export default function OrdersPage() {
 
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {isCompleted && (
-            <Link href={`/orders/${order.id}#rate-modder`} className="w-full sm:w-auto">
+            <Link href={`/orders/${order.id}/rate`} className="w-full sm:w-auto">
               <span className="h-9 px-3 border-2 border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-950 font-mono text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shadow-xs transition-colors">
                 ⭐ {order.review ? `★${order.review.rating}.0 Rated` : "Rate Modder"}
               </span>

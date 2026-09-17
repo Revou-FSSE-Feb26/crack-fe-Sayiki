@@ -22,12 +22,30 @@ export default function OrderDetailPage() {
       if (!orderId) return;
       try {
         setLoading(true);
+        let currentUser: any = null;
+        try {
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) currentUser = JSON.parse(storedUser);
+        } catch (e) {}
+
         const stored = localStorage.getItem("switchlab_orders");
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
             const found = parsed.find((o: any) => o.id === orderId);
             if (found) {
+              // If user is a customer, verify they own the order
+              if (
+                currentUser &&
+                currentUser.role === "CUSTOMER" &&
+                found.customerId &&
+                found.customerId !== currentUser.id
+              ) {
+                setOrder(null);
+                setLoading(false);
+                return;
+              }
+
               const shipFee = found.deliveryMethod === "WALK_IN" ? 0 : (found.shippingFee ?? 20000);
               const sub = found.subtotal ?? Math.max(0, (found.totalPrice || 0) - shipFee);
               setOrder({
@@ -57,6 +75,19 @@ export default function OrderDetailPage() {
         }
 
         if (dbOrder) {
+          // Verify customer access permission
+          if (currentUser && currentUser.role === "CUSTOMER") {
+            const matchesCustomer =
+              dbOrder.customerId === currentUser.id ||
+              dbOrder.customer?.id === currentUser.id ||
+              (currentUser.email && dbOrder.customer?.email?.toLowerCase() === currentUser.email.toLowerCase());
+            if (!matchesCustomer) {
+              setOrder(null);
+              setLoading(false);
+              return;
+            }
+          }
+
           const shipFee = dbOrder.deliveryMethod === "WALK_IN" ? 0 : 20000;
           const sub = dbOrder.items?.reduce((s: number, i: any) => s + (i.subTotal || 0), 0) || Math.max(0, dbOrder.totalPrice - shipFee);
           setOrder({

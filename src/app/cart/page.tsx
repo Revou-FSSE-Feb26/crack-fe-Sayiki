@@ -103,13 +103,13 @@ export default function CartPage() {
     setIsProcessing(true);
     let orderId = `SWL-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    try {
-      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-      const user = storedUser ? JSON.parse(storedUser) : null;
-      const customerId = user?.id || "48c8fc2d-d918-456c-80ea-662d8b17f120";
-      const modderId = (items[0] as any)?.modderId || "f45ee67f-610d-4dff-9f11-5a4463037e5a";
-      const serviceId = (items[0] as any)?.serviceId || "08e593e5-77ef-4048-b704-31bd6da43177";
+    const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const customerId = user?.id || "48c8fc2d-d918-456c-80ea-662d8b17f120";
+    const modderId = (items[0] as any)?.modderId || "f45ee67f-610d-4dff-9f11-5a4463037e5a";
+    const serviceId = (items[0] as any)?.serviceId || "08e593e5-77ef-4048-b704-31bd6da43177";
 
+    try {
       const randomMinutes = Math.floor(Math.random() * 100000) + 60;
       const bookingDate = new Date(Date.now() + randomMinutes * 60000).toISOString();
 
@@ -145,6 +145,9 @@ export default function CartPage() {
       const existingOrders = JSON.parse(localStorage.getItem("switchlab_orders") || "[]");
       const newOrder = {
         id: orderId,
+        customerId: customerId,
+        customerEmail: user?.email,
+        modderId: modderId,
         date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
         modder: items[0]?.provider || "@VerifiedModder",
         service: items.map((i) => i.title).join(" + "),

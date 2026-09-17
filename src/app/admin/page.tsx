@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
 
@@ -27,6 +28,8 @@ export default function AdminDashboardPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<PendingPayment | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -34,6 +37,22 @@ export default function AdminDashboardPage() {
   };
 
   const loadData = async () => {
+    setMounted(true);
+    let userObj: any = null;
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        userObj = JSON.parse(storedUser);
+        setCurrentUser(userObj);
+      }
+    } catch (e) {}
+
+    // Only allow ADMIN role into Escrow Vault
+    if (!userObj || userObj.role !== "ADMIN") {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const orders = await api.orders.getAll().catch(() => []);
@@ -199,42 +218,60 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation Tabs */}
-        <div className="flex border-b-2 border-slate-900 mb-8 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab("VERIFY_PAYMENTS")}
-            className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
-              activeTab === "VERIFY_PAYMENTS"
-                ? "bg-brand-sidebar border-slate-900 text-brand-navy"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            Payment Verification ({pendingCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("DISBURSEMENTS")}
-            className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
-              activeTab === "DISBURSEMENTS"
-                ? "bg-brand-sidebar border-slate-900 text-brand-navy"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            Modder Disbursements ({completedOrders.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("DISPUTES")}
-            className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
-              activeTab === "DISPUTES"
-                ? "bg-brand-sidebar border-slate-900 text-brand-navy"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            Disputes Arbitration (0)
-          </button>
-        </div>
+        {mounted && (!currentUser || currentUser.role !== "ADMIN") ? (
+          <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm my-8 max-w-2xl mx-auto">
+            <div className="text-4xl mb-3">🛡️</div>
+            <h2 className="text-xl font-black text-brand-textMain mb-2">Escrow Vault Access Restricted</h2>
+            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
+              The Escrow Operations Vault is restricted to SwitchLab Administrators. You are currently signed in as {currentUser?.role || "a Guest"}.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link href="/orders">
+                <Button variant="primary" isLoading={false} className="text-xs">View My Orders →</Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="secondary" isLoading={false} className="text-xs">Login as Admin</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Navigation Tabs */}
+            <div className="flex border-b-2 border-slate-900 mb-8 gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab("VERIFY_PAYMENTS")}
+                className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
+                  activeTab === "VERIFY_PAYMENTS"
+                    ? "bg-brand-sidebar border-slate-900 text-brand-navy"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Payment Verification ({pendingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("DISBURSEMENTS")}
+                className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
+                  activeTab === "DISBURSEMENTS"
+                    ? "bg-brand-sidebar border-slate-900 text-brand-navy"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Modder Disbursements ({completedOrders.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("DISPUTES")}
+                className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider border-t-2 border-x-2 -mb-[2px] transition-colors ${
+                  activeTab === "DISPUTES"
+                    ? "bg-brand-sidebar border-slate-900 text-brand-navy"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Disputes Arbitration (0)
+              </button>
+            </div>
 
         {/* TAB 1: VERIFY PAYMENTS */}
         {activeTab === "VERIFY_PAYMENTS" && (
@@ -431,6 +468,8 @@ export default function AdminDashboardPage() {
               </p>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

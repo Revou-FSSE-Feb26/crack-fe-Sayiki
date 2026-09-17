@@ -20,9 +20,24 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
+    let userObj: any = null;
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        userObj = JSON.parse(storedUser);
+        setCurrentUser(userObj);
+      }
+    } catch (e) {}
+
+    if (!userObj) {
+      setLoading(false);
+      return;
+    }
+
     async function loadCustomerOrders() {
       let local: any[] = [];
       try {
@@ -33,8 +48,19 @@ export default function OrdersPage() {
       } catch (e) {}
 
       try {
-        const dbOrders = await api.orders.getAll();
-        const mappedDb = (Array.isArray(dbOrders) ? dbOrders : []).map((b: any) => ({
+        setLoading(true);
+        const dbOrders = await api.orders.getAll({ customerId: userObj.id });
+        
+        // Strict customer isolation filter:
+        const filteredDb = (Array.isArray(dbOrders) ? dbOrders : []).filter((b: any) => {
+          return (
+            b.customerId === userObj.id ||
+            b.customer?.id === userObj.id ||
+            (userObj.email && b.customer?.email?.toLowerCase() === userObj.email.toLowerCase())
+          );
+        });
+
+        const mappedDb: OrderSummary[] = filteredDb.map((b: any) => ({
           id: b.id,
           date: new Date(b.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
           modder: `@${b.modder?.name || "Modder"}`,
@@ -45,15 +71,23 @@ export default function OrdersPage() {
           badgeClass: b.status === "SUCCESS" ? "bg-green-50 text-green-700 border-green-600" : "bg-blue-50 text-blue-700 border-blue-600",
         }));
 
-        const combined = [...(Array.isArray(local) ? local : [])];
-        mappedDb.forEach((dbItem: any) => {
+        // Filter local storage orders strictly by customer
+        const filteredLocal = (Array.isArray(local) ? local : []).filter((o: any) => {
+          return (
+            o.customerId === userObj.id ||
+            (userObj.email && o.customerEmail?.toLowerCase() === userObj.email.toLowerCase())
+          );
+        });
+
+        const combined = [...filteredLocal];
+        mappedDb.forEach((dbItem: OrderSummary) => {
           if (!combined.some((c) => c.id === dbItem.id)) {
             combined.push(dbItem);
           }
         });
         setOrders(combined);
       } catch (e) {
-        setOrders(Array.isArray(local) ? local : []);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -77,7 +111,7 @@ export default function OrdersPage() {
                 My Orders & Escrow Bookings
               </h1>
               <p className="text-sm font-mono text-brand-textMuted uppercase tracking-wider mt-1">
-                Real-Time Escrow Tracking • Shipping Logistics • Workbench Milestones
+                {currentUser ? `Logged in as ${currentUser.name} (${currentUser.email})` : "Real-Time Escrow Tracking • Shipping Logistics • Workbench Milestones"}
               </p>
             </div>
 
@@ -101,6 +135,44 @@ export default function OrdersPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Role-Specific Modder Banner */}
+        {currentUser?.role === "MODDER" && (
+          <div className="mb-6 bg-slate-900 text-white p-4 border-2 border-slate-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <span className="font-mono font-bold text-xs uppercase text-amber-400 block mb-1">
+                🛠️ Modder Account Active (@{currentUser.name})
+              </span>
+              <p className="text-xs text-slate-300 font-mono">
+                This page displays personal orders you placed as a customer. To view and tune client keyboard orders assigned to your studio, open your Modder Workbench.
+              </p>
+            </div>
+            <Link href="/modder/dashboard" className="shrink-0">
+              <button className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs font-mono uppercase tracking-wider">
+                Open Modder Workbench ➔
+              </button>
+            </Link>
+          </div>
+        )}
+
+        {/* Role-Specific Admin Banner */}
+        {currentUser?.role === "ADMIN" && (
+          <div className="mb-6 bg-blue-900 text-white p-4 border-2 border-slate-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <span className="font-mono font-bold text-xs uppercase text-blue-300 block mb-1">
+                🛡️ Admin Account Active
+              </span>
+              <p className="text-xs text-slate-200 font-mono">
+                Platform-wide customer escrow deposits, bank mutasi reconciliation, and modder payout disbursements are located in the Escrow Vault.
+              </p>
+            </div>
+            <Link href="/admin" className="shrink-0">
+              <button className="px-4 py-2 bg-white hover:bg-slate-100 text-brand-navy font-bold text-xs font-mono uppercase tracking-wider">
+                Open Escrow Vault ➔
+              </button>
+            </Link>
+          </div>
+        )}
+
         {loading ? (
           <div className="bg-white border-2 border-slate-900 p-12 text-center my-8 shadow-sm">
             <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
@@ -108,8 +180,19 @@ export default function OrdersPage() {
               Querying Escrow Ledger & Orders...
             </h2>
             <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mt-2">
-              Syncing with PostgreSQL database via NestJS API
+              Syncing your personal orders from PostgreSQL database via NestJS API
             </p>
+          </div>
+        ) : mounted && !currentUser ? (
+          <div className="bg-white border-2 border-slate-900 p-12 text-center my-8 shadow-sm">
+            <div className="text-4xl mb-3">🔒</div>
+            <h2 className="text-xl font-black text-brand-textMain mb-2">Sign In Required</h2>
+            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
+              Please sign in to view your orders and track live escrow bookings.
+            </p>
+            <Link href="/login">
+              <Button variant="primary" isLoading={false}>Sign In to SwitchLab →</Button>
+            </Link>
           </div>
         ) : orders.length === 0 ? (
           <div className="bg-white border-2 border-slate-900 p-12 text-center my-8 shadow-sm">

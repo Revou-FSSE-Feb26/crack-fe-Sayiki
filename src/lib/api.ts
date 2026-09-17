@@ -80,6 +80,7 @@ export const api = {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        window.dispatchEvent(new Event('storage'));
       }
     },
   },
@@ -92,7 +93,13 @@ export const api = {
     getById: (id: string) => apiFetch<any>(`/products/${id}`),
   },
   orders: {
-    getAll: () => apiFetch<any[]>('/orders'),
+    getAll: (params?: { customerId?: string; modderId?: string }) => {
+      const query = new URLSearchParams();
+      if (params?.customerId) query.append('customerId', params.customerId);
+      if (params?.modderId) query.append('modderId', params.modderId);
+      const qs = query.toString();
+      return apiFetch<any[]>(`/orders${qs ? `?${qs}` : ''}`);
+    },
     getById: (id: string) => apiFetch<any>(`/orders/${id}`),
     create: (data: any) =>
       apiFetch<any>('/orders', {

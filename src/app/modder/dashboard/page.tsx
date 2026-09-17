@@ -35,6 +35,8 @@ export default function ModderDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [modderName, setModderName] = useState("Modder");
   const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
   const [dispatchTrackingInput, setDispatchTrackingInput] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
@@ -46,23 +48,32 @@ export default function ModderDashboardPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     let currentUserId: string | null = null;
+    let userObj: any = null;
     try {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
-        const u = JSON.parse(storedUser);
-        if (u.name) setModderName(u.name);
-        if (u.id) {
-          currentUserId = u.id;
-          setLoggedInUserId(u.id);
+        userObj = JSON.parse(storedUser);
+        setCurrentUser(userObj);
+        if (userObj.name) setModderName(userObj.name);
+        if (userObj.id) {
+          currentUserId = userObj.id;
+          setLoggedInUserId(userObj.id);
         }
       }
     } catch (e) {}
 
+    // Role check: If guest or not a modder/admin, don't attempt to load modder jobs
+    if (!userObj || (userObj.role !== "MODDER" && userObj.role !== "ADMIN")) {
+      setLoading(false);
+      return;
+    }
+
     async function loadJobs() {
       try {
         setLoading(true);
-        const data = await api.orders.getAll().catch(() => []);
+        const data = await api.orders.getAll({ modderId: currentUserId || undefined }).catch(() => []);
         const dbOrders = Array.isArray(data) ? data : [];
 
         let localOrders: any[] = [];
@@ -74,9 +85,14 @@ export default function ModderDashboardPage() {
         // Filter out UNPAID and PENDING_ADMIN_VERIFICATION orders:
         // Modder must NOT work on jobs where escrow deposit is unverified!
         const filteredDb = dbOrders.filter((b: any) => {
-          // If logged in as modder, only show orders assigned to them
-          if (currentUserId && b.modderId && b.modderId !== currentUserId) {
-            return false;
+          // Strictly verify assignment to this modder:
+          if (userObj?.id) {
+            const matchesId = b.modderId === userObj.id || b.modder?.id === userObj.id;
+            const matchesEmail = userObj.email && b.modder?.email?.toLowerCase() === userObj.email.toLowerCase();
+            const matchesName = userObj.name && b.modder?.name?.toLowerCase() === userObj.name.toLowerCase();
+            if (!matchesId && !matchesEmail && !matchesName) {
+              return false;
+            }
           }
           // Do not show unpaid or unverified orders in the active workbench
           return b.status !== "UNPAID" && b.status !== "PENDING_ADMIN_VERIFICATION";
@@ -102,8 +118,10 @@ export default function ModderDashboardPage() {
           soundTestUploaded: b.status === "SHIPPED_BACK" || b.status === "SUCCESS",
         }));
 
-        // Filter local storage test orders: exclude unverified
+        // Filter local storage test orders: strictly assigned to this modder
         const filteredLocal = (Array.isArray(localOrders) ? localOrders : []).filter((o: any) => {
+          if (userObj?.id && o.modderId && o.modderId !== userObj.id) return false;
+          if (userObj?.name && o.modder && !o.modder.toLowerCase().includes(userObj.name.toLowerCase())) return false;
           return o.status !== "UNPAID" && o.status !== "PENDING_ADMIN_VERIFICATION";
         });
 
@@ -360,7 +378,23 @@ export default function ModderDashboardPage() {
           </button>
         </div>
 
-        {loading ? (
+        {mounted && (!currentUser || (currentUser.role !== "MODDER" && currentUser.role !== "ADMIN")) ? (
+          <div className="bg-white border-2 border-slate-900 p-12 text-center shadow-sm my-4">
+            <div className="text-4xl mb-3">🛠️</div>
+            <h2 className="text-xl font-black text-brand-textMain mb-2">Modder Studio Access Restricted</h2>
+            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 max-w-md mx-auto">
+              This workbench is reserved for registered SwitchLab modders. You are currently signed in as {currentUser?.role || "a Guest"}.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link href="/orders">
+                <Button variant="primary" isLoading={false} className="text-xs">View My Orders →</Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="secondary" isLoading={false} className="text-xs">Switch to Modder Account</Button>
+              </Link>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="bg-brand-sidebar border-2 border-slate-900 p-12 text-center font-mono text-xs text-brand-textMuted uppercase">
             <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
             <h2 className="text-base font-bold text-brand-textMain">Loading Workbench Queue...</h2>

@@ -221,21 +221,23 @@ export function Navbar() {
           </div>
 
           {/* Right Action Group */}
-          <div className="flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-wider">
+          {/* Right Action Group */}
+          <div className="flex items-center gap-2.5 font-mono text-xs font-bold uppercase tracking-wider">
             {/* Cart Button: ONLY visible when logged in */}
             {mounted && user && (
               <Link
                 href="/cart"
-                className={`px-3 py-1.5 border-2 transition-colors flex items-center gap-1.5 ${
+                className={`h-9 px-3 border-2 transition-colors inline-flex items-center justify-center gap-1.5 box-border ${
                   isRouteActive("/cart")
                     ? "bg-brand-navy text-white border-brand-navy"
                     : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
                 }`}
               >
-                <span>🛒 Cart</span>
+                <span className="text-xs leading-none">🛒</span>
+                <span className="leading-none">Cart</span>
                 {cartCount > 0 && (
                   <span
-                    className={`px-1.5 py-0.5 text-[10px] font-mono font-bold ${
+                    className={`px-1.5 py-0.5 text-[10px] font-mono font-bold leading-none ${
                       isRouteActive("/cart")
                         ? "bg-white text-brand-navy"
                         : "bg-brand-navy text-white"
@@ -249,21 +251,21 @@ export function Navbar() {
 
             {/* Notification Bell & Dropdown */}
             {mounted && user && (
-              <div className="relative" ref={notifRef}>
+              <div className="relative inline-flex items-center" ref={notifRef}>
                 <button
                   type="button"
                   onClick={() => setShowNotifs(!showNotifs)}
-                  className={`px-3 py-1.5 border-2 transition-all flex items-center gap-1.5 ${
+                  className={`h-9 px-3 border-2 transition-all inline-flex items-center justify-center gap-1.5 box-border ${
                     showNotifs || unreadCount > 0
                       ? "border-brand-navy bg-blue-50 text-brand-navy"
                       : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
                   }`}
                   title="Live Order & Escrow Notifications"
                 >
-                  <span className="text-sm">🔔</span>
-                  <span className="hidden sm:inline text-[11px]">Alerts</span>
+                  <span className="text-xs leading-none">🔔</span>
+                  <span className="hidden sm:inline text-xs leading-none">Alerts</span>
                   {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.2 bg-red-600 text-white text-[10px] font-black animate-pulse">
+                    <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black leading-none animate-pulse">
                       {unreadCount}
                     </span>
                   )}
@@ -271,7 +273,7 @@ export function Navbar() {
 
                 {/* Notifications Dropdown Panel */}
                 {showNotifs && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-brand-sidebar border-2 border-slate-900 shadow-2xl z-50 font-mono text-xs">
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-brand-sidebar border-2 border-slate-900 shadow-2xl z-50 font-mono text-xs">
                     <div className="p-3 bg-brand-lightBg border-b-2 border-slate-900 flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-xs uppercase text-brand-textMain">
@@ -340,21 +342,22 @@ export function Navbar() {
             {/* Auth Buttons: Toggle between Logged In Profile and Guest Log In / Sign Up */}
             {mounted && user ? (
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-mono font-bold truncate max-w-[120px]">
-                  👤 {user.name}
+                <span className="h-9 px-3 bg-slate-100 border-2 border-slate-900 text-slate-800 text-xs font-mono font-bold truncate max-w-[140px] inline-flex items-center gap-1.5 box-border">
+                  <span className="text-xs leading-none">👤</span>
+                  <span className="truncate leading-none">{user.name}</span>
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 border-2 border-slate-900 bg-white text-slate-900 hover:bg-red-50 hover:border-red-600 hover:text-red-700 transition-colors text-xs font-mono font-bold"
+                  className="h-9 px-3 border-2 border-slate-900 bg-white text-slate-900 hover:bg-red-50 hover:border-red-600 hover:text-red-700 transition-colors text-xs font-mono font-bold uppercase inline-flex items-center justify-center box-border"
                 >
-                  Log out
+                  <span className="leading-none">Log out</span>
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className={`px-3.5 py-1.5 border-2 transition-colors ${
+                  className={`h-9 px-3.5 border-2 transition-colors inline-flex items-center justify-center box-border ${
                     isRouteActive("/login")
                       ? "bg-brand-navy text-white border-brand-navy"
                       : "border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white"
@@ -365,7 +368,7 @@ export function Navbar() {
 
                 <Link
                   href="/register"
-                  className={`px-3.5 py-1.5 border-2 transition-all ${
+                  className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center box-border ${
                     isRouteActive("/register")
                       ? "bg-brand-terracotta text-white border-brand-terracotta"
                       : "bg-brand-navy text-white border-brand-navy hover:bg-[#132856]"

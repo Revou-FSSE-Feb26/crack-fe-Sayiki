@@ -24,7 +24,6 @@ const formatCategoryBadge = (category: string) => {
 
 export default function HomePage() {
   const [services, setServices] = useState<any[]>([]);
-  const [portfolios, setPortfolios] = useState<any[]>([]);
   const [modders, setModders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +40,6 @@ export default function HomePage() {
         const moddersData = Array.isArray(moddersRes) ? moddersRes : [];
 
         setServices(servicesData);
-        setPortfolios(moddersData);
 
         // Deduplicate modders from database
         const modderMap = new Map();
@@ -310,77 +308,6 @@ export default function HomePage() {
                     <Link href={`/service/${service.id}`} className="block w-full">
                       <Button variant="primary" isLoading={false} className="w-full">
                         Book Service →
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Section 4: Live Workbench Portfolios & Build Gallery (From Database) */}
-        <div className="mb-16">
-          <div className="flex justify-between items-center mb-6 pb-2 border-b-2 border-slate-900">
-            <div>
-              <h2 className="text-2xl font-bold text-brand-textMain">Modder Portfolios & Recent Builds</h2>
-              <p className="text-xs font-mono uppercase tracking-wider text-brand-textMuted">
-                Real keyboard builds tuned and documented by verified craftsmen
-              </p>
-            </div>
-            <Link
-              href="/modders"
-              className="font-mono text-xs font-bold uppercase tracking-wider text-brand-navy hover:underline"
-            >
-              Browse all studios →
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="bg-brand-sidebar border-2 border-slate-900 p-8 text-center font-mono text-xs text-brand-textMuted uppercase">
-              Loading portfolio gallery from database...
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {portfolios.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="bg-brand-sidebar border-2 border-slate-900 overflow-hidden hover:shadow-lg transition-all group hover:border-brand-navy flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="p-4 pb-2">
-                      <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-green-600 bg-green-50 text-green-700">
-                        [ VERIFIED WORKBENCH BUILD ]
-                      </span>
-                    </div>
-
-                    <div className="px-4 pb-2">
-                      <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
-                        <img
-                          src={`/images/${idx % 2 === 0 ? "lubing-swtiches.webp" : "stabs.webp"}`}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-4 pt-2">
-                      <h3 className="font-bold text-base text-brand-textMain mb-1.5 group-hover:text-brand-navy transition-colors">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-brand-textMuted mb-2 line-clamp-2">
-                        {item.description}
-                      </p>
-                      <p className="text-xs font-mono text-brand-navy font-semibold">
-                        Modder: @{item.modder?.name || "StudioModder"} • 📍 {item.modder?.locationCity}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 pt-0">
-                    <Link href="/modders" className="block w-full">
-                      <Button variant="secondary" isLoading={false} className="w-full text-xs">
-                        View Modder Studio →
                       </Button>
                     </Link>
                   </div>

@@ -29,6 +29,9 @@ export default function ProfilePage() {
   const [city, setCity] = useState("Jakarta");
   const [role, setRole] = useState<"CUSTOMER" | "MODDER">("CUSTOMER");
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [modSpecialty, setModSpecialty] = useState("SWITCH_LUBE_FILM");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -47,11 +50,82 @@ export default function ProfilePage() {
       }
     } catch (e) {}
 
+    // Fetch fresh user data from database to ensure up-to-date verification status
+    if (userObj?.id) {
+      api.users.getById(userObj.id).then((freshUser) => {
+        if (freshUser) {
+          const merged = { ...userObj, ...freshUser };
+          setCurrentUser(merged);
+          localStorage.setItem("user", JSON.stringify(merged));
+          setRole(merged.role === "MODDER" ? "MODDER" : "CUSTOMER");
+        }
+      }).catch(() => null);
+    }
+
     // Require authentication
     if (!userObj) {
       router.replace("/login?redirect=/profile");
     }
   }, [router]);
+
+  const handleVerifyStudio = async () => {
+    if (!currentUser?.id) return;
+    setVerifying(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const updatedUser = await api.users
+        .update(currentUser.id, { isVerified: true })
+        .catch(() => null);
+
+      const merged = {
+        ...currentUser,
+        ...(updatedUser || {}),
+        isVerified: true,
+      };
+
+      localStorage.setItem("user", JSON.stringify(merged));
+      setCurrentUser(merged);
+      syncAuthCookies();
+      window.dispatchEvent(new Event("storage"));
+
+      setSuccessMessage("🎉 Studio Verified! Your profile now holds the official [ 🛠️ VERIFIED MODDER STUDIO ] badge.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err: any) {
+      setError(err?.message || "Failed to verify studio. Please try again.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleUnverifyStudio = async () => {
+    if (!currentUser?.id) return;
+    setVerifying(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const updatedUser = await api.users
+        .update(currentUser.id, { isVerified: false })
+        .catch(() => null);
+
+      const merged = {
+        ...currentUser,
+        ...(updatedUser || {}),
+        isVerified: false,
+      };
+
+      localStorage.setItem("user", JSON.stringify(merged));
+      setCurrentUser(merged);
+      syncAuthCookies();
+      window.dispatchEvent(new Event("storage"));
+
+      setSuccessMessage("Studio verification status reset to unverified.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to update verification status.");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,16 +218,24 @@ export default function ProfilePage() {
                   <span
                     className={`inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 ${
                       isModder
-                        ? "border-amber-600 bg-amber-50 text-amber-900"
+                        ? currentUser.isVerified
+                          ? "border-amber-600 bg-amber-50 text-amber-900"
+                          : "border-slate-400 bg-slate-100 text-slate-700"
                         : "border-brand-navy bg-brand-lightBg text-brand-navy"
                     }`}
                   >
-                    [ {isModder ? "🛠️ VERIFIED MODDER STUDIO" : "👤 CUSTOMER ACCOUNT"} ]
+                    [ {isModder ? (currentUser.isVerified ? "🛠️ VERIFIED MODDER STUDIO" : "🛠️ MODDER STUDIO") : "👤 CUSTOMER ACCOUNT"} ]
                   </span>
-                  {currentUser.isVerified && (
-                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase border border-emerald-700 bg-emerald-50 text-emerald-800">
-                      ✓ Verified
-                    </span>
+                  {isModder && (
+                    currentUser.isVerified ? (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase border border-emerald-700 bg-emerald-50 text-emerald-800 flex items-center gap-1">
+                        ✓ Verified Studio
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase border border-amber-600 bg-amber-50 text-amber-900 flex items-center gap-1">
+                        ⚠️ Unverified Studio
+                      </span>
+                    )
                   )}
                 </div>
                 <h1 className="text-2xl md:text-3xl font-black text-brand-textMain tracking-tight">
@@ -259,6 +341,20 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Studio Verification</span>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className={`font-mono text-xs font-bold ${currentUser.isVerified ? "text-emerald-700" : "text-amber-800"}`}>
+                      {currentUser.isVerified ? "✓ Verified Studio" : "⚠️ Unverified"}
+                    </span>
+                    {!currentUser.isVerified && isModder && (
+                      <a href="#verify-studio" className="text-[10px] font-mono text-brand-navy underline font-bold">
+                        Verify Now →
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Registered Location</span>
                   <span className="font-mono text-slate-800 font-bold">📍 {currentUser.locationCity || "Jakarta"}</span>
                 </div>
@@ -327,7 +423,126 @@ export default function ProfilePage() {
           </div>
 
           {/* Right Column: Full Edit Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
+            {/* Modder Studio Verification Section */}
+            {isModder && (
+              !currentUser.isVerified ? (
+                <div id="verify-studio" className="bg-white border-2 border-amber-500 p-6 md:p-8 shadow-xs">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-2 border-slate-900 pb-4 mb-5">
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border border-amber-600 bg-amber-50 text-amber-900 mb-1.5">
+                        [ 🛡️ STUDIO IDENTITY & BADGE VERIFICATION ]
+                      </span>
+                      <h3 className="text-xl font-black text-brand-textMain">
+                        Get Your Verified Modder Studio Badge
+                      </h3>
+                      <p className="text-xs text-brand-textMuted uppercase tracking-wider mt-0.5">
+                        Verify your studio to unlock the official Verified badge, increase customer bookings, and gain Escrow trust.
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 text-xs font-bold font-mono bg-amber-100 text-amber-900 border border-amber-400 uppercase shrink-0">
+                      Status: Unverified
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mb-6 text-xs font-mono">
+                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
+                      <div className="font-bold text-slate-900 mb-1">🏷️ Verified Badge</div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">
+                        Unlocks the official [ 🛠️ VERIFIED MODDER STUDIO ] badge on all your listings and studio profile.
+                      </p>
+                    </div>
+                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
+                      <div className="font-bold text-slate-900 mb-1">🔍 Directory Priority</div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">
+                        Appears with verified checkmark in the Modders Directory and local city drop-off filters.
+                      </p>
+                    </div>
+                    <div className="p-3.5 bg-brand-lightBg border border-slate-300">
+                      <div className="font-bold text-slate-900 mb-1">🛡️ Escrow Trust</div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">
+                        Instant eligibility for vault disbursements once customer confirms build quality.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
+                          Studio Portfolio / Sound Test URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. instagram.com/arzaq.mods or youtube.com/@mods"
+                          value={portfolioUrl}
+                          onChange={(e) => setPortfolioUrl(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1.5">
+                          Primary Modding Specialization
+                        </label>
+                        <select
+                          value={modSpecialty}
+                          onChange={(e) => setModSpecialty(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border-2 border-slate-800 text-xs font-mono bg-brand-lightBg"
+                        >
+                          <option value="SWITCH_LUBE_FILM">Switch Lubing & Filming (Krytox 205g0 / Tribosys)</option>
+                          <option value="STABILIZER_TUNING">Stabilizer Tuning (PCB Clip-in / Screw-in / Holee Mod)</option>
+                          <option value="SOLDERING_DESOLDERING">Soldering & Mill-Max Hot-swap Conversion</option>
+                          <option value="FULL_CUSTOM_BUILD">Full Custom Keyboard Assembly & Acoustic Tuning</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        Click below to verify your studio credentials and immediately activate your verified status in database.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={verifying}
+                        onClick={handleVerifyStudio}
+                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase tracking-wider border-2 border-slate-900 flex items-center gap-2 shrink-0 cursor-pointer shadow-xs transition-colors"
+                      >
+                        {verifying ? "Verifying..." : "⚡ Verify Modder Studio Now"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div id="verify-studio" className="bg-emerald-50/60 border-2 border-emerald-600 p-6 md:p-8 shadow-xs">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border border-emerald-700 bg-emerald-100 text-emerald-900">
+                          ✓ OFFICIALLY VERIFIED STUDIO
+                        </span>
+                        <span className="text-emerald-700 text-xs font-bold font-mono">Identity & Escrow Active</span>
+                      </div>
+                      <h3 className="text-lg font-black text-brand-textMain mt-1">
+                        Your Modder Studio is Officially Verified!
+                      </h3>
+                      <p className="text-xs text-slate-600 mt-1 font-mono">
+                        Your account holds the official <strong>[ 🛠️ VERIFIED MODDER STUDIO ]</strong> trust badge. You appear in the Verified Modders Directory and have instant escrow authorization.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={verifying}
+                      onClick={handleUnverifyStudio}
+                      className="text-[11px] font-mono text-slate-500 hover:text-red-700 underline shrink-0 cursor-pointer"
+                      title="Reset verification for testing purposes"
+                    >
+                      {verifying ? "Updating..." : "[ Reset to Unverified ]"}
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+
             <div className="bg-white border-2 border-slate-900 p-6 md:p-8 shadow-xs">
               <div className="border-b-2 border-slate-900 pb-4 mb-6">
                 <span className="inline-block px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider border border-brand-navy bg-brand-lightBg text-brand-navy mb-1.5">

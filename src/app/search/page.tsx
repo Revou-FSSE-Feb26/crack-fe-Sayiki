@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/Button";
@@ -37,7 +37,7 @@ const getCategoryFallbackImage = (category?: string) => {
 
 type FilterType = "all" | "services" | "portfolios";
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
 
@@ -341,5 +341,22 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-brand-lightBg flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="text-3xl animate-spin inline-block">⚙️</div>
+            <p className="text-sm font-mono font-bold text-slate-700">Loading Search...</p>
+          </div>
+        </div>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   );
 }

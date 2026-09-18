@@ -37,7 +37,7 @@ const getCategoryFallbackImage = (category?: string) => {
 
 type FilterType = "all" | "services" | "portfolios";
 
-function SearchPageContent() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
 
@@ -348,15 +348,17 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-brand-lightBg flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <div className="text-3xl animate-spin inline-block">⚙️</div>
-            <p className="text-sm font-mono font-bold text-slate-700">Loading Search...</p>
+        <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
+          <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+            <div className="text-3xl mb-3 animate-spin inline-block">⚙️</div>
+            <h2 className="text-base font-bold font-mono text-brand-textMain uppercase tracking-wide">
+              Loading Marketplace...
+            </h2>
           </div>
         </div>
       }
     >
-      <SearchPageContent />
+      <SearchContent />
     </Suspense>
   );
 }

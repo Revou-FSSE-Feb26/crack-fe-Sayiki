@@ -84,19 +84,45 @@ export default function AdminDashboardPage() {
 
       // Map DB orders
       const mappedDbPayments: PendingPayment[] = dbOrders.map((b: any, idx: number) => {
-        const code = 100 + (idx * 17) % 899;
+        // Look for matching local metadata if created on this machine
+        const localMatch = localOrders.find((o: any) => o.id === b.id || o.orderId === b.id);
+
+        let code = localMatch?.uniqueCode;
+        let sub = localMatch?.subtotal;
+        let total = b.totalPrice;
+
+        if (!code) {
+          const remainder = Math.round(b.totalPrice) % 1000;
+          if (remainder > 0) {
+            // b.totalPrice already includes the 3-digit verification code (e.g. 10,070,794)
+            code = remainder;
+            sub = b.totalPrice - remainder;
+            total = b.totalPrice;
+          } else {
+            // If b.totalPrice ends in 000 (e.g. legacy seed data without code baked in)
+            code = 100 + (idx * 17) % 899;
+            sub = b.totalPrice;
+            total = b.totalPrice + code;
+          }
+        } else {
+          total = b.totalPrice || (sub ? sub + code : code);
+          if (!sub) {
+            sub = total - code;
+          }
+        }
+
         return {
           id: b.id,
           orderNumber: b.id.slice(0, 8).toUpperCase(),
-          customerName: b.customer?.name || "Verified Customer",
-          customerCity: b.customer?.locationCity || "Indonesia",
-          modderHandle: `@${b.modder?.name || "VerifiedModder"}`,
-          serviceTitle: b.items?.[0]?.service?.title || b.keyboardModel || "Custom Keyboard Modding Service",
-          subtotal: b.totalPrice,
+          customerName: b.customer?.name || localMatch?.customerName || "Verified Customer",
+          customerCity: b.customer?.locationCity || localMatch?.customerCity || "Indonesia",
+          modderHandle: `@${b.modder?.name || localMatch?.modder?.replace(/^@/, "") || "VerifiedModder"}`,
+          serviceTitle: b.items?.[0]?.service?.title || b.keyboardModel || localMatch?.service || "Custom Keyboard Modding Service",
+          subtotal: sub,
           uniqueCode: code,
-          totalToVerify: b.totalPrice + code,
+          totalToVerify: total,
           bank: "BCA Escrow Vault",
-          receiptName: b.paymentProof || "bca_transfer_receipt.jpg",
+          receiptName: b.paymentProof || localMatch?.receiptFileName || "bca_transfer_receipt.jpg",
           submittedAt: new Date(b.createdAt || Date.now()).toLocaleDateString(),
           status: b.status === "PAID_WAITING_MODDER" || b.status === "KEYBOARD_IN_MODDER_HAND" || b.status === "SUCCESS"
             ? "APPROVED"
@@ -105,21 +131,27 @@ export default function AdminDashboardPage() {
       });
 
       // Map local test orders
-      const mappedLocalPayments: PendingPayment[] = (Array.isArray(localOrders) ? localOrders : []).map((o: any) => ({
-        id: o.id,
-        orderNumber: o.id,
-        customerName: "Current User",
-        customerCity: "Jakarta",
-        modderHandle: o.modder || "@VerifiedModder",
-        serviceTitle: o.service || "Keyboard Modding",
-        subtotal: o.totalPrice || 425000,
-        uniqueCode: 678,
-        totalToVerify: (o.totalPrice || 425000) + 678,
-        bank: "BCA Escrow Vault",
-        receiptName: "bca_mtransfer_receipt_678.jpg",
-        submittedAt: o.date || "Today",
-        status: o.status === "PAID_WAITING_MODDER" || o.status === "SUCCESS" ? "APPROVED" : "PENDING",
-      }));
+      const mappedLocalPayments: PendingPayment[] = (Array.isArray(localOrders) ? localOrders : []).map((o: any) => {
+        const uniqueCode = o.uniqueCode || (o.totalPrice ? Math.round(o.totalPrice) % 1000 : 0) || 678;
+        const totalToVerify = o.exactTransferTotal || o.totalPrice || 425678;
+        const subtotal = o.subtotal || (totalToVerify - uniqueCode);
+
+        return {
+          id: o.id,
+          orderNumber: o.id,
+          customerName: o.customerName || "Current User",
+          customerCity: o.customerCity || "Jakarta",
+          modderHandle: o.modder || "@VerifiedModder",
+          serviceTitle: o.service || "Keyboard Modding",
+          subtotal: subtotal,
+          uniqueCode: uniqueCode,
+          totalToVerify: totalToVerify,
+          bank: "BCA Escrow Vault",
+          receiptName: o.receiptFileName || o.paymentProof || "bca_mtransfer_receipt_678.jpg",
+          submittedAt: o.date || "Today",
+          status: o.status === "PAID_WAITING_MODDER" || o.status === "SUCCESS" ? "APPROVED" : "PENDING",
+        };
+      });
 
       // Combine and deduplicate by id
       const combined = [...mappedDbPayments];

@@ -99,6 +99,14 @@ export default function CartPage() {
   };
 
   const [createdOrderId, setCreatedOrderId] = useState<string>("SWL-8942");
+  const [completedOrderSummary, setCompletedOrderSummary] = useState<{
+    orderId: string;
+    subtotal: number;
+    shippingFee: number;
+    exactTransferTotal: number;
+    uniqueCode: number;
+    receiptFileName: string;
+  } | null>(null);
 
   const handleSubmitProof = async () => {
     setIsProcessing(true);
@@ -110,6 +118,11 @@ export default function CartPage() {
     const modderId = (items[0] as any)?.modderId || "f45ee67f-610d-4dff-9f11-5a4463037e5a";
     const serviceId = (items[0] as any)?.serviceId || "08e593e5-77ef-4048-b704-31bd6da43177";
 
+    const finalSubtotal = grandTotal;
+    const finalExactTotal = exactTransferTotal;
+    const finalCode = uniqueCode;
+    const finalReceipt = receiptFileName || "mTransfer_Receipt.png";
+
     try {
       const randomMinutes = Math.floor(Math.random() * 100000) + 60;
       const bookingDate = new Date(Date.now() + randomMinutes * 60000).toISOString();
@@ -119,13 +132,13 @@ export default function CartPage() {
         modderId,
         keyboardModel: items[0]?.title || "Custom Keyboard",
         deliveryMethod,
-        totalPrice: exactTransferTotal,
+        totalPrice: finalExactTotal,
         bookingDate,
-        paymentProof: receiptFileName || "proofs/payment-proof.png",
+        paymentProof: finalReceipt,
         items: [
           {
             serviceId,
-            subTotal: exactTransferTotal,
+            subTotal: finalExactTotal,
           },
         ],
       });
@@ -140,6 +153,14 @@ export default function CartPage() {
     setIsProcessing(false);
     setShowPaywallModal(false);
     setCreatedOrderId(orderId);
+    setCompletedOrderSummary({
+      orderId,
+      subtotal: finalSubtotal,
+      shippingFee,
+      exactTransferTotal: finalExactTotal,
+      uniqueCode: finalCode,
+      receiptFileName: finalReceipt,
+    });
 
     // Save order to switchlab_orders for this customer
     try {
@@ -152,9 +173,12 @@ export default function CartPage() {
         date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
         modder: items[0]?.provider || "@VerifiedModder",
         service: items.map((i) => i.title).join(" + "),
-        totalPrice: exactTransferTotal,
-        subtotal: subtotal,
+        totalPrice: finalExactTotal,
+        subtotal: finalSubtotal,
+        baseSubtotal: subtotal,
         shippingFee: shippingFee,
+        uniqueCode: finalCode,
+        exactTransferTotal: finalExactTotal,
         deliveryMethod: deliveryMethod,
         keyboardModel: items[0]?.title || "Custom Mechanical Keyboard",
         status: "PENDING_ADMIN_VERIFICATION",
@@ -170,7 +194,7 @@ export default function CartPage() {
       targetUserId: customerId,
       type: "ORDER",
       title: "🧾 Order Placed & Payment Uploaded",
-      message: `Order #${orderId} (Rp ${exactTransferTotal.toLocaleString()}) submitted for admin escrow verification.`,
+      message: `Order #${orderId} (Rp ${finalExactTotal.toLocaleString()}) submitted for admin escrow verification.`,
       orderId: orderId,
       link: `/orders/${orderId}`,
     });
@@ -179,7 +203,7 @@ export default function CartPage() {
       targetRole: "ADMIN",
       type: "PAYMENT",
       title: "🔍 New Payment Proof to Verify",
-      message: `Order #${orderId} (Rp ${exactTransferTotal.toLocaleString()}) transfer proof uploaded by customer.`,
+      message: `Order #${orderId} (Rp ${finalExactTotal.toLocaleString()}) transfer proof uploaded by customer.`,
       orderId: orderId,
       link: "/admin",
     });
@@ -200,6 +224,11 @@ export default function CartPage() {
   };
 
   if (orderComplete) {
+    const displayTotal = completedOrderSummary?.exactTransferTotal ?? exactTransferTotal;
+    const displayCode = completedOrderSummary?.uniqueCode ?? uniqueCode;
+    const displayOrderId = completedOrderSummary?.orderId ?? createdOrderId;
+    const displayReceipt = completedOrderSummary?.receiptFileName ?? receiptFileName ?? "mTransfer_Receipt.png";
+
     return (
       <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
         <div className="w-full max-w-lg bg-brand-sidebar border-2 border-slate-900 p-8 text-center shadow-lg">
@@ -211,7 +240,7 @@ export default function CartPage() {
           </span>
           <h1 className="text-2xl font-black text-brand-textMain mb-2">Awaiting Admin Verification</h1>
           <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6">
-            Order Reference #{createdOrderId} • Verification Code #{uniqueCode}
+            Order Reference #{displayOrderId} • Verification Code #{displayCode}
           </p>
 
           <div className="bg-brand-lightBg border-2 border-slate-900 p-4 text-left font-mono text-xs space-y-2.5 mb-6">
@@ -223,12 +252,12 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-brand-textMuted">Exact Transfer Total:</span>
-              <span className="font-bold text-brand-navy">Rp {exactTransferTotal.toLocaleString()}</span>
+              <span className="font-bold text-brand-navy">Rp {displayTotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-brand-textMuted">Verification Code:</span>
               <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-1.5">
-                +{uniqueCode}
+                +{displayCode}
               </span>
             </div>
             <div className="flex justify-between">
@@ -237,12 +266,12 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-brand-textMuted">Attached Receipt:</span>
-              <span className="font-bold text-slate-700">{receiptFileName || "mTransfer_Receipt.png"}</span>
+              <span className="font-bold text-slate-700">{displayReceipt}</span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <a href={`/orders/${createdOrderId}`} className="block w-full">
+            <a href={`/orders/${displayOrderId}`} className="block w-full">
               <Button variant="primary" isLoading={false} className="w-full">
                 Track Escrow Progress →
               </Button>

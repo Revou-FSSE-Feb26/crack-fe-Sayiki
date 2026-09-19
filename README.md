@@ -105,6 +105,8 @@ Showcase directory displaying verified artisan modders, custom workbench builds,
 
 ## 📊 Entity Relationship Diagram (ERD)
 
+![SwitchLab Entity Relationship Diagram](docs/erd.png)
+
 The frontend consumes and renders data structured around the following relational database schema:
 
 ```mermaid

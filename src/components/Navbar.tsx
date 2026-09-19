@@ -356,7 +356,7 @@ export function Navbar() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="h-9 px-3 border-2 border-slate-900 bg-white text-slate-900 hover:bg-red-50 hover:border-red-600 hover:text-red-700 transition-colors text-xs font-mono font-bold uppercase inline-flex items-center justify-center box-border shrink-0"
+                  className="h-9 px-3 border-2 border-red-600 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white transition-colors text-xs font-mono font-bold uppercase inline-flex items-center justify-center box-border shrink-0 cursor-pointer"
                 >
                   <span className="leading-none">Log out</span>
                 </button>

@@ -365,10 +365,10 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className={`h-9 px-3.5 border-2 transition-colors inline-flex items-center justify-center box-border ${
+                  className={`h-9 px-3.5 border-2 transition-colors inline-flex items-center justify-center box-border font-bold ${
                     isRouteActive("/login")
-                      ? "bg-brand-navy text-white border-brand-navy"
-                      : "border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white"
+                      ? "bg-brand-navy text-white border-brand-navy shadow-xs"
+                      : "border-slate-900 bg-white text-slate-900 hover:bg-slate-100"
                   }`}
                 >
                   Log in
@@ -376,10 +376,10 @@ export function Navbar() {
 
                 <Link
                   href="/register"
-                  className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center box-border ${
+                  className={`h-9 px-3.5 border-2 transition-all inline-flex items-center justify-center box-border font-bold ${
                     isRouteActive("/register")
-                      ? "bg-brand-terracotta text-white border-brand-terracotta"
-                      : "bg-brand-navy text-white border-brand-navy hover:bg-[#132856]"
+                      ? "bg-brand-terracotta text-white border-slate-900 shadow-xs"
+                      : "bg-brand-terracotta text-white border-brand-terracotta hover:bg-[#a04e49]"
                   }`}
                 >
                   Sign up

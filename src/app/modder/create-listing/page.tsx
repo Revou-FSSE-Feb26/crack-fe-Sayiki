@@ -634,8 +634,8 @@ export default function CreateListingPage() {
                   <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
-                    min="10000"
-                    step="5000"
+                    min="1000"
+                    step="100"
                     value={basePrice}
                     onChange={(e) => setBasePrice(Number(e.target.value))}
                     required
@@ -724,7 +724,7 @@ export default function CreateListingPage() {
                         <input
                           type="number"
                           min="0"
-                          step="5000"
+                          step="500"
                           value={opt.extraPrice}
                           onChange={(e) => handleUpdateOption(opt.id, "extraPrice", Number(e.target.value))}
                           placeholder="0"

@@ -141,6 +141,7 @@ erDiagram
         string description "Service Details"
         float basePrice "Base Cost (IDR)"
         ServiceCategory category "CASE_AND_ACOUSTIC | SWITCH_MODS | STABILIZER_MODS | CUSTOMIZATION_AESTHETICS"
+        string imageUrl "Cover photo / media"
     }
 
     SERVICE_OPTION {

@@ -44,22 +44,26 @@ export function middleware(request: NextRequest) {
     tokenCookie !== "null" &&
     tokenCookie.trim() !== ""
   );
-  const hasValidRole = Boolean(
-    roleCookie &&
-    roleCookie !== "undefined" &&
-    roleCookie !== "null" &&
-    roleCookie.trim() !== ""
-  );
 
-  const isAuthenticated = hasValidToken || hasValidRole;
-  const normalizedRole = (role || "").toUpperCase();
+  // CRITICAL FIX: Authentication STRICTLY requires a valid JWT token.
+  // A role cookie without a valid token must NEVER authenticate a session!
+  const isAuthenticated = hasValidToken;
+  const normalizedRole = isAuthenticated ? (role || "").toUpperCase() : "";
+
+  // Helper to construct unauthenticated redirect to /login and clear stale cookies
+  const redirectToLogin = (targetPath: string) => {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", targetPath);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    redirectResponse.cookies.delete("token");
+    redirectResponse.cookies.delete("user_role");
+    return redirectResponse;
+  };
 
   // 1. Modder Studio Workbench Protection (/modder/:path*)
   if (pathname.startsWith("/modder")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(pathname);
     }
 
     // Role Guard: Customer is strictly forbidden from accessing modder workbench!
@@ -73,9 +77,7 @@ export function middleware(request: NextRequest) {
   // 2. Admin Escrow Vault Protection (/admin/:path*)
   if (pathname.startsWith("/admin")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(pathname);
     }
 
     // Role Guard: Strictly ADMIN only!
@@ -89,31 +91,25 @@ export function middleware(request: NextRequest) {
   // 3. Customer Orders & Live Escrow Tracker (/orders/:path*)
   if (pathname.startsWith("/orders")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(pathname);
     }
   }
 
   // 4. Cart & Checkout (/cart)
   if (pathname.startsWith("/cart")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(pathname);
     }
   }
 
   // 5. Profile & Settings (/profile/:path*)
   if (pathname.startsWith("/profile")) {
     if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(pathname);
     }
   }
 
-  // 6. Auth Pages (/login, /register) - Redirect already logged in users immediately!
+  // 6. Auth Pages (/login, /register) - Redirect only if GENUINELY authenticated with token!
   if (pathname === "/login" || pathname === "/register") {
     if (isAuthenticated) {
       const redirectTarget = request.nextUrl.searchParams.get("redirect");
@@ -138,6 +134,14 @@ export function middleware(request: NextRequest) {
       } else {
         return NextResponse.redirect(new URL("/orders", request.url));
       }
+    } else {
+      // If NOT authenticated, ensure stale cookies are scrubbed from browser
+      const cleanResponse = NextResponse.next();
+      if (rawToken || rawRole) {
+        cleanResponse.cookies.delete("token");
+        cleanResponse.cookies.delete("user_role");
+      }
+      return cleanResponse;
     }
   }
 

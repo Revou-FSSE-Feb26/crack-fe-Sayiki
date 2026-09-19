@@ -43,16 +43,33 @@ export function syncAuthCookies() {
   try {
     const token = localStorage.getItem('token');
     const userRaw = localStorage.getItem('user');
-    if (token && token !== 'undefined' && token !== 'null') {
-      document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+
+    // If either token or user is missing/falsy, purge all cookies immediately
+    if (
+      !token ||
+      token === 'undefined' ||
+      token === 'null' ||
+      token.trim() === '' ||
+      !userRaw ||
+      userRaw === 'undefined' ||
+      userRaw === 'null'
+    ) {
+      document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      return;
     }
-    if (userRaw && userRaw !== 'undefined' && userRaw !== 'null') {
-      const user = JSON.parse(userRaw);
-      if (user?.role) {
-        document.cookie = `user_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax`;
-      }
+
+    document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+    const user = JSON.parse(userRaw);
+    if (user?.role) {
+      document.cookie = `user_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax`;
     }
-  } catch (e) {}
+  } catch (e) {
+    document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+  }
 }
 
 export const api = {
@@ -111,6 +128,8 @@ export const api = {
         localStorage.removeItem('user');
         document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
         document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+        document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         window.dispatchEvent(new Event('storage'));
       }
     },

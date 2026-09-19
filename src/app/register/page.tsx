@@ -16,12 +16,16 @@ export default function RegisterPage(){
   const [error, setError] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // Client-Side Guard: If already logged in, redirect away from /register
+  // Client-Side Guard: If already logged in with BOTH token & user, redirect away from /register
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userObj = JSON.parse(storedUser);
+      const storedToken = localStorage.getItem("token");
+      const hasToken = Boolean(storedToken && storedToken !== "undefined" && storedToken !== "null" && storedToken.trim() !== "");
+      const hasUser = Boolean(storedUser && storedUser !== "undefined" && storedUser !== "null" && storedUser.trim() !== "");
+
+      if (hasUser && hasToken) {
+        const userObj = JSON.parse(storedUser!);
         const role = String(userObj?.role || '').toUpperCase();
         if (role) {
           syncAuthCookies();
@@ -37,7 +41,11 @@ export default function RegisterPage(){
           }
         }
       }
+
+      // If missing token or user, clear lingering cookies
+      api.auth.logout();
     } catch (e) {
+      api.auth.logout();
     } finally {
       setIsCheckingSession(false);
     }

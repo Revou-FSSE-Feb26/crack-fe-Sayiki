@@ -14,12 +14,16 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // Immediate Client-Side Guard: If already logged in, redirect immediately!
+  // Immediate Client-Side Guard: If already logged in with BOTH token & user, redirect immediately!
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userObj = JSON.parse(storedUser);
+      const storedToken = localStorage.getItem("token");
+      const hasToken = Boolean(storedToken && storedToken !== "undefined" && storedToken !== "null" && storedToken.trim() !== "");
+      const hasUser = Boolean(storedUser && storedUser !== "undefined" && storedUser !== "null" && storedUser.trim() !== "");
+
+      if (hasUser && hasToken) {
+        const userObj = JSON.parse(storedUser!);
         const role = String(userObj?.role || '').toUpperCase();
         if (role) {
           // Sync cookies immediately to ensure middleware and edge requests are aligned
@@ -51,8 +55,11 @@ function LoginForm() {
           }
         }
       }
+
+      // If NOT fully authenticated (missing token or user), clean up any stale cookies so login form shows
+      api.auth.logout();
     } catch (e) {
-      // ignore
+      api.auth.logout();
     } finally {
       setIsCheckingSession(false);
     }

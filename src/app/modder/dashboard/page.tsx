@@ -484,30 +484,35 @@ export default function ModderDashboardPage() {
   // Full-screen guard: Customers and Guests CANNOT see or access the modder workbench
   const userRole = String(currentUser?.role || "").toUpperCase();
   if (mounted && (!currentUser || (userRole !== "MODDER" && userRole !== "ADMIN"))) {
+    const isGuest = !currentUser;
     return (
       <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl">
+        <div className="max-w-md w-full bg-white border-2 border-slate-900 p-8 text-center shadow-xl font-mono">
           <div className="w-16 h-16 bg-red-50 border-2 border-red-600 text-red-600 flex items-center justify-center mx-auto mb-4 text-3xl font-mono">
-            ⛔
+            {isGuest ? "🔒" : "⛔"}
           </div>
           <span className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-red-600 bg-red-50 text-red-700 mb-2">
-            [ 403 FORBIDDEN • ACCESS DENIED ]
+            {isGuest ? "[ 401 UNAUTHORIZED • SIGN IN REQUIRED ]" : "[ 403 FORBIDDEN • ACCESS DENIED ]"}
           </span>
           <h1 className="text-2xl font-black text-brand-textMain mb-2">
-            Modder Workbench Restricted
+            {isGuest ? "Modder Studio Sign In Required" : "Modder Workbench Restricted"}
           </h1>
-          <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6">
-            You are logged in as a <strong>{currentUser?.role || "GUEST"}</strong>. The Workbench is strictly reserved for verified modders and studio operators.
+          <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-6 leading-relaxed">
+            {isGuest ? (
+              <>You are currently logged out. Please log in with your verified Modder credentials to manage tuning jobs and workbench orders.</>
+            ) : (
+              <>You are signed in as a <strong>CUSTOMER</strong> (@{currentUser.name}). The Studio Workbench is strictly reserved for verified modders.</>
+            )}
           </p>
-          <div className="flex flex-col gap-2">
-            <Link href="/orders">
+          <div className="flex flex-col gap-2.5">
+            <Link href="/login?redirect=/modder/dashboard">
               <Button variant="primary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
-                Go to My Customer Orders →
+                {isGuest ? "🔑 Log In to Studio Workbench →" : "Switch to Modder Account →"}
               </Button>
             </Link>
-            <Link href="/login">
+            <Link href={isGuest ? "/services" : "/orders"}>
               <Button variant="secondary" isLoading={false} className="w-full text-xs uppercase font-mono font-bold">
-                Switch to Modder Account
+                {isGuest ? "← Browse Services & Marketplace" : "Go to My Customer Orders →"}
               </Button>
             </Link>
           </div>

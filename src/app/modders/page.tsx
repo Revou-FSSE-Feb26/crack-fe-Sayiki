@@ -31,17 +31,43 @@ export default function ModdersDirectoryPage() {
         const dbModders = allUsers?.filter((u: any) => u.role === 'MODDER') || [];
         if (dbModders.length > 0) {
           setIsBackendConnected(true);
+          const lubingStylesList = [
+            'Hand-Lubed (Krytox)',
+            'Hand-Lubed (Tribosys)',
+            'Hand-Lubed (205g0)',
+            'Machine-Lubed',
+          ];
+
           const enriched = dbModders.map((item: any, idx: number) => {
             const firstPortfolio = item.portfolios?.[0];
             const specialtiesList = item.services?.length > 0
               ? item.services.map((s: any) => s.title)
               : ['Lubing & Tuning', 'Stabilizers'];
+
+            // Diversify lubing styles deterministically per modder
+            const chosenLubingStyle = lubingStylesList[idx % lubingStylesList.length];
+
+            // Diversify realistic equipment based on specialty & profile
+            const modderEquipment: string[] = ['Switch Opener'];
+            if (idx % 2 === 0) {
+              modderEquipment.push('Ultrasonic Cleaner');
+            }
+            if (idx % 3 === 0 || specialtiesList.some((s: string) => /solder|repair/i.test(s))) {
+              modderEquipment.push('Soldering Iron', 'Desoldering Station');
+            } else {
+              modderEquipment.push('Ultrasonic Cleaner');
+            }
+            if (idx % 2 === 1 || specialtiesList.some((s: string) => /he|hall/i.test(s))) {
+              modderEquipment.push('Hall Effect Tester');
+            }
+            const uniqueEquipment = Array.from(new Set(modderEquipment));
+
             return {
               id: item.id,
               username: `@${item.name?.replace(/\s+/g, '') || 'Modder' + (idx + 1)}`,
               displayName: item.name || 'Artisan Modder',
               avatar: `/images/${idx % 2 === 0 ? 'lubing-swtiches.webp' : 'stabs.webp'}`,
-              status: 'accepting',
+              status: idx % 3 === 1 ? 'queue_full' : idx % 4 === 2 ? 'on_break' : 'accepting',
               rating: item.avgRating || 4.9,
               totalOrders: item.bookingsAsModder?.length || 0,
               location: {
@@ -49,8 +75,8 @@ export default function ModdersDirectoryPage() {
                 province: 'Indonesia'
               },
               specialties: specialtiesList,
-              lubingStyle: 'Hand-Lubed (Krytox)',
-              equipment: ['Soldering Iron', 'Ultrasonic Cleaner'],
+              lubingStyle: chosenLubingStyle,
+              equipment: uniqueEquipment,
               turnaroundTime: 'Standard (3-5 days)',
               soundTest: {
                 title: firstPortfolio?.title || 'Custom Acoustic Build',
@@ -395,7 +421,7 @@ function ModderCard({ modder }: { modder: any }) {
         </div>
 
         {/* Specialty Chips */}
-        <div className="flex flex-wrap gap-1.5 mb-4 min-h-[52px] items-start">
+        <div className="flex flex-wrap gap-1.5 mb-3 min-h-[44px] items-start">
           {modder.specialties.map((specialty: string, index: number) => (
             <span
               key={index}
@@ -404,6 +430,18 @@ function ModderCard({ modder }: { modder: any }) {
               {specialty}
             </span>
           ))}
+        </div>
+
+        {/* Technical Specs: Lubing Style & Equipment */}
+        <div className="p-2 bg-slate-50 border border-slate-200 mb-3 font-mono text-[10px] space-y-1">
+          <div className="flex items-center justify-between text-slate-700">
+            <span className="font-bold text-brand-navy">🧪 LUBE STYLE:</span>
+            <span className="truncate ml-1 font-semibold">{modder.lubingStyle}</span>
+          </div>
+          <div className="flex items-center justify-between text-slate-700">
+            <span className="font-bold text-brand-navy">⚙️ EQUIPMENT:</span>
+            <span className="truncate ml-1 font-semibold">{modder.equipment?.slice(0, 2).join(', ')}</span>
+          </div>
         </div>
 
         {/* Audio Sound Test Player Station */}

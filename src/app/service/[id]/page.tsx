@@ -19,6 +19,7 @@ interface ServiceDetail {
   description: string;
   basePrice: number;
   category: string;
+  imageUrl?: string;
   modder?: {
     id: string;
     name: string;
@@ -134,7 +135,7 @@ export default function ServiceDetailPage() {
       provider: `@${service.modder?.name || "VerifiedModder"}`,
       price: calculateTotal(),
       quantity: 1,
-      image: getCategoryFallbackImage(service.category),
+      image: service.imageUrl || getCategoryFallbackImage(service.category),
     };
 
     try {
@@ -210,7 +211,7 @@ export default function ServiceDetailPage() {
             <div className="bg-brand-sidebar border-2 border-slate-900 p-6">
               <div className="h-80 bg-brand-lightBg overflow-hidden border-2 border-slate-800 mb-6">
                 <img
-                  src={getCategoryFallbackImage(service.category)}
+                  src={service.imageUrl || getCategoryFallbackImage(service.category)}
                   alt={service.title}
                   className="w-full h-full object-cover"
                 />

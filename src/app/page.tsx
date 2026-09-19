@@ -281,7 +281,7 @@ export default function HomePage() {
                     <div className="px-4 pb-2">
                       <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300">
                         <img
-                          src={getCategoryFallbackImage(service.category)}
+                          src={service.imageUrl || getCategoryFallbackImage(service.category)}
                           alt={service.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />

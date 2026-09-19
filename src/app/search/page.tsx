@@ -75,7 +75,7 @@ function SearchContent() {
           pricing: `Rp ${s.basePrice.toLocaleString()} ${s.category === "SWITCH_MODS" ? "/ switch" : "/ board"}`,
           badge: s.category.replace(/_/g, " "),
           badgeColor: "bg-brand-lightBg text-brand-navy border-brand-navy",
-          image: getCategoryFallbackImage(s.category),
+          image: s.imageUrl || getCategoryFallbackImage(s.category),
           buttonText: "Book Service (Escrow)",
           link: `/service/${s.id}`,
           locationCity: s.modder?.locationCity || "Indonesia",

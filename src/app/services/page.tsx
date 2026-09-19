@@ -26,6 +26,7 @@ interface ServiceListing {
   description: string;
   basePrice: number;
   category: "SWITCH_MODS" | "STABILIZER_MODS" | "CASE_AND_ACOUSTIC" | "CUSTOMIZATION_AESTHETICS" | string;
+  imageUrl?: string;
   modder?: ServiceModder;
   options?: ServiceOption[];
 }
@@ -315,7 +316,7 @@ export default function ServicesCatalogPage() {
                   <div className="px-4 pb-2">
                     <div className="h-40 bg-brand-lightBg overflow-hidden border border-slate-300">
                       <img
-                        src={getCategoryFallbackImage(service.category)}
+                        src={service.imageUrl || getCategoryFallbackImage(service.category)}
                         alt={service.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />

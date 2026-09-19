@@ -53,11 +53,35 @@ const CATEGORIES: { value: ServiceCategory; label: string; icon: string; desc: s
   },
 ];
 
+const getCategoryFallbackImage = (category: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "/images/lubing-swtiches.webp";
+    case "STABILIZER_MODS":
+      return "/images/stabs.webp";
+    case "CASE_AND_ACOUSTIC":
+      return "/images/foam.jpg";
+    case "CUSTOMIZATION_AESTHETICS":
+    default:
+      return "/images/repair-kb.png";
+  }
+};
+
+const PRESET_PHOTOS = [
+  { label: "Switch Lubing", url: "/images/lubing-swtiches.webp", category: "SWITCH_MODS", icon: "🔘" },
+  { label: "Stabilizer Tuning", url: "/images/stabs.webp", category: "STABILIZER_MODS", icon: "⚖️" },
+  { label: "Acoustic Foams", url: "/images/foam.jpg", category: "CASE_AND_ACOUSTIC", icon: "🔊" },
+  { label: "Switches & Parts", url: "/images/switches.jpg", category: "SWITCH_MODS", icon: "🎛️" },
+  { label: "Full Custom Build", url: "/images/repair-kb.png", category: "CUSTOMIZATION_AESTHETICS", icon: "🔧" },
+  { label: "Prebuilt Keyboard", url: "/images/prebuilt-kb.webp", category: "CUSTOMIZATION_AESTHETICS", icon: "⌨️" },
+];
+
 const PRESETS = [
   {
     title: "Master Linear Switch Lubing & Filming",
     category: "SWITCH_MODS" as ServiceCategory,
     basePrice: 150000,
+    imageUrl: "/images/lubing-swtiches.webp",
     desc: "Precision hand-brush lubing with Krytox 205g0 for stems/housings and Krytox 105 oil bag-lubing for springs. Includes ultrasonic degreasing and sound testing check before dispatch.",
     options: [
       { id: "1", optionName: "Krytox 205g0 + Krytox 105 Spring Oil", optionType: "LUBE_TYPE" as ServiceOptionType, extraPrice: 0 },
@@ -69,6 +93,7 @@ const PRESETS = [
     title: "Zero-Rattle Stabilizer Balancing & Holee Mod",
     category: "STABILIZER_MODS" as ServiceCategory,
     basePrice: 95000,
+    imageUrl: "/images/stabs.webp",
     desc: "Complete wire straightening on machinist stone, stem medical tape Holee mod, housing lubing with Krytox 205g0, and wire coating with XHT-BDZ high-viscosity grease.",
     options: [
       { id: "1", optionName: "Krytox XHT-BDZ Wire Coating", optionType: "LUBE_TYPE" as ServiceOptionType, extraPrice: 0 },
@@ -79,6 +104,7 @@ const PRESETS = [
     title: "Deep Thock Case & Acoustic Dampening Pack",
     category: "CASE_AND_ACOUSTIC" as ServiceCategory,
     basePrice: 120000,
+    imageUrl: "/images/foam.jpg",
     desc: "Custom cut EVA/Poron plate foam, precision case cavity silicone pour or acoustic batting, and multi-layer tempest tape mod for clean, deep bottom-out acoustics.",
     options: [
       { id: "1", optionName: "Custom Poron Plate & Case Foam", optionType: "FOAM_TYPE" as ServiceOptionType, extraPrice: 25000 },
@@ -97,6 +123,9 @@ export default function CreateListingPage() {
   const [category, setCategory] = useState<ServiceCategory>("SWITCH_MODS");
   const [basePrice, setBasePrice] = useState<number>(150000);
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageInputMode, setImageInputMode] = useState<"upload" | "url" | "presets">("upload");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [options, setOptions] = useState<OptionItem[]>([
     {
       id: "opt_1",
@@ -138,6 +167,9 @@ export default function CreateListingPage() {
     setCategory(preset.category);
     setBasePrice(preset.basePrice);
     setDescription(preset.desc);
+    if (preset.imageUrl) {
+      setImageUrl(preset.imageUrl);
+    }
     setOptions(
       preset.options.map((opt, idx) => ({
         id: `opt_${Date.now()}_${idx}`,
@@ -146,6 +178,71 @@ export default function CreateListingPage() {
         extraPrice: opt.extraPrice,
       }))
     );
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file (JPG, PNG, WebP).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image file is too large (max 10MB).");
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const MAX_DIM = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          const optimized = canvas.toDataURL("image/jpeg", 0.85);
+          setImageUrl(optimized);
+        } catch (err) {
+          setImageUrl(event.target?.result as string);
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      img.onerror = () => {
+        setUploadingImage(false);
+        setError("Failed to process image file.");
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      setUploadingImage(false);
+      setError("Failed to read image file.");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddOption = () => {
@@ -211,6 +308,7 @@ export default function CreateListingPage() {
         description: description.trim(),
         basePrice: Number(basePrice),
         category: category,
+        imageUrl: imageUrl.trim() || undefined,
         options: formattedOptions.length > 0 ? formattedOptions : undefined,
       });
 
@@ -362,10 +460,170 @@ export default function CreateListingPage() {
               </div>
             </div>
 
+            {/* 2. Service Cover Photo & Media */}
+            <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <div>
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain">
+                    2. Service Cover Photo & Media
+                  </h2>
+                  <p className="text-[10px] text-brand-textMuted">
+                    Add a picture for your listing (Upload local image, choose a preset, or paste URL)
+                  </p>
+                </div>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl("")}
+                    className="text-[10px] text-red-600 hover:text-red-800 font-bold uppercase underline cursor-pointer"
+                  >
+                    ✕ Clear Photo
+                  </button>
+                )}
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className="flex border-b border-slate-200 gap-2 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setImageInputMode("upload")}
+                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
+                    imageInputMode === "upload"
+                      ? "bg-brand-navy text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  📁 Upload Device Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageInputMode("presets")}
+                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
+                    imageInputMode === "presets"
+                      ? "bg-brand-navy text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  🖼️ Studio Presets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageInputMode("url")}
+                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
+                    imageInputMode === "url"
+                      ? "bg-brand-navy text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  🌐 Image URL Link
+                </button>
+              </div>
+
+              {/* Mode 1: Local File Upload */}
+              {imageInputMode === "upload" && (
+                <div className="space-y-3">
+                  <label className="border-2 border-dashed border-slate-400 hover:border-brand-navy p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                    <span className="text-3xl mb-2">{uploadingImage ? "⚙️" : "📷"}</span>
+                    <span className="text-xs font-bold text-slate-800 uppercase">
+                      {uploadingImage ? "Processing image..." : "Click to choose photo from computer/phone"}
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      Supports JPG, PNG, WebP • Auto-optimized for fast load
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Mode 2: Studio Presets */}
+              {imageInputMode === "presets" && (
+                <div className="space-y-2">
+                  <span className="text-[10px] text-slate-500 block uppercase font-bold">
+                    Select a curated mechanical keyboard tuning photo:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {PRESET_PHOTOS.map((photo, i) => {
+                      const isSelected = imageUrl === photo.url;
+                      return (
+                        <div
+                          key={i}
+                          onClick={() => setImageUrl(photo.url)}
+                          className={`border-2 p-1.5 cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-brand-navy bg-blue-50"
+                              : "border-slate-300 hover:border-slate-800 bg-white"
+                          }`}
+                        >
+                          <div className="h-16 overflow-hidden bg-slate-100 mb-1 border border-slate-200">
+                            <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-800">
+                            <span className="truncate">{photo.icon} {photo.label}</span>
+                            {isSelected && <span className="text-brand-navy">✓</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Mode 3: Custom URL */}
+              {imageInputMode === "url" && (
+                <div>
+                  <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                    Image Direct URL (https://...)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://images.unsplash.com/... or https://i.imgur.com/..."
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-800 focus:border-brand-navy text-brand-textMain font-mono text-xs focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Paste any public image link (Unsplash, Discord CDN, Imgur, Cloudinary)
+                  </span>
+                </div>
+              )}
+
+              {/* Active Image Thumbnail / Confirmation */}
+              {imageUrl && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 bg-slate-200 border border-slate-400 overflow-hidden shrink-0">
+                      <img src={imageUrl} alt="Selected Preview" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-emerald-900 block">
+                        ✓ Photo Selected & Attached
+                      </span>
+                      <span className="text-[10px] text-emerald-700 truncate max-w-xs block">
+                        Will be displayed on your service card in Marketplace and Catalog
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl("")}
+                    className="px-2.5 py-1 text-[11px] font-bold uppercase bg-white border border-red-300 text-red-700 hover:bg-red-50 cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Pricing & Description */}
             <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
               <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
-                2. Pricing & Scope Description
+                3. Pricing & Scope Description
               </h2>
 
               <div>
@@ -412,7 +670,7 @@ export default function CreateListingPage() {
               <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <div>
                   <h2 className="text-sm font-bold uppercase text-brand-textMain">
-                    3. Configurable Add-ons & Options
+                    4. Configurable Add-ons & Options
                   </h2>
                   <p className="text-[10px] text-brand-textMuted">
                     Options customers can select during checkout (e.g. lube types, switch films)
@@ -516,6 +774,20 @@ export default function CreateListingPage() {
                   <span className="text-[10px] text-slate-500">
                     📍 {currentUser.locationCity || "Jakarta"}
                   </span>
+                </div>
+
+                {/* Cover Photo Preview */}
+                <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300 mb-3 relative group">
+                  <img
+                    src={imageUrl || getCategoryFallbackImage(category)}
+                    alt={title || "Service Preview"}
+                    className="w-full h-full object-cover"
+                  />
+                  {imageUrl && (
+                    <span className="absolute bottom-1.5 right-1.5 bg-black/75 text-white text-[9px] px-1.5 py-0.5 font-mono font-bold">
+                      ✓ Custom Photo
+                    </span>
+                  )}
                 </div>
 
                 <h3 className="font-bold text-base text-brand-textMain mb-2 leading-tight">

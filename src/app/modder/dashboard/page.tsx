@@ -31,6 +31,20 @@ const workbenchStages = [
   "Stage 6: Reassembly & Final Acoustic Testing",
 ];
 
+const getCategoryFallbackImage = (category?: string) => {
+  switch (category) {
+    case "SWITCH_MODS":
+      return "/images/lubing-swtiches.webp";
+    case "STABILIZER_MODS":
+      return "/images/stabs.webp";
+    case "CASE_AND_ACOUSTIC":
+      return "/images/foam.jpg";
+    case "CUSTOMIZATION_AESTHETICS":
+    default:
+      return "/images/repair-kb.png";
+  }
+};
+
 export default function ModderDashboardPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<ModderJob[]>([]);
@@ -651,6 +665,14 @@ export default function ModderDashboardPage() {
                         <span className="text-[10px] text-emerald-700 font-bold font-mono">
                           ✓ Live in Marketplace
                         </span>
+                      </div>
+
+                      <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300 mb-3">
+                        <img
+                          src={service.imageUrl || getCategoryFallbackImage(service.category)}
+                          alt={service.title}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
                       <h3 className="font-bold text-base text-brand-textMain mb-2 leading-tight">

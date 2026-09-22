@@ -37,27 +37,26 @@ export default function HomePage() {
 
     async function loadData() {
       try {
-        setLoading(true);
-        const [servicesRes, moddersRes, usersRes] = await Promise.all([
+        const [servicesRes, moddersRes, directoryRes] = await Promise.all([
           api.listings.getAll().catch(() => []),
           api.modders.getAll().catch(() => []),
-          api.users.getAll().catch(() => []),
+          api.modders.getDirectory().catch(() => []),
         ]);
 
         if (!isMounted) return;
 
         const servicesData = Array.isArray(servicesRes) ? servicesRes : [];
         const moddersData = Array.isArray(moddersRes) ? moddersRes : [];
-        const usersData = Array.isArray(usersRes) ? usersRes : [];
+        const directoryData = Array.isArray(directoryRes) ? directoryRes : [];
 
         setServices(servicesData);
 
-        // Deduplicate modders from portfolios & user database
+        // Deduplicate modders from portfolios & directory
         const modderMap = new Map();
 
-        // 1. Modders from users API
-        usersData.forEach((u: any) => {
-          if (u.role === 'MODDER' && !modderMap.has(u.id)) {
+        // 1. Modders from public directory
+        directoryData.forEach((u: any) => {
+          if (!modderMap.has(u.id)) {
             modderMap.set(u.id, {
               ...u,
               specialty: u.services?.[0]?.title || 'Key Switch Tuning Specialist',

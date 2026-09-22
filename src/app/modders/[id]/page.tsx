@@ -35,19 +35,23 @@ export default function ModderProfilePage() {
         setLoading(true);
         setError(null);
 
-        // Try getting user profile directly or via modder portfolios
+        // Try getting modder profile directly via public modders/:id endpoint
         let userData: any = null;
         try {
-          userData = await api.users.getById(modderId);
+          userData = await api.modders.getById(modderId);
         } catch (e) {
-          // If direct users/:id isn't accessible, look in modders list
-          const allModders = await api.modders.getAll();
-          const match = allModders.find(
-            (m: any) => m.id === modderId || m.modderId === modderId
-          );
-          if (match) {
-            userData = match.modder;
-            userData.portfolios = allModders.filter((m: any) => m.modderId === match.modderId);
+          try {
+            userData = await api.users.getById(modderId);
+          } catch (e2) {
+            // If direct endpoints fail, look in public modders list
+            const allModders = await api.modders.getAll().catch(() => []);
+            const match = (allModders || []).find(
+              (m: any) => m.id === modderId || m.modderId === modderId
+            );
+            if (match) {
+              userData = match.modder || match;
+              userData.portfolios = (allModders || []).filter((m: any) => m.modderId === match.modderId);
+            }
           }
         }
 

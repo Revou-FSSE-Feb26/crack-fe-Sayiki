@@ -60,8 +60,13 @@ export function middleware(request: NextRequest) {
     return redirectResponse;
   };
 
+  // Explicitly ensure /modders public directory & modder profiles are 100% accessible to anyone!
+  if (pathname === "/modders" || pathname.startsWith("/modders/")) {
+    return NextResponse.next();
+  }
+
   // 1. Modder Studio Workbench Protection (/modder/:path*)
-  if (pathname.startsWith("/modder")) {
+  if (pathname === "/modder" || pathname.startsWith("/modder/")) {
     if (!isAuthenticated) {
       return redirectToLogin(pathname);
     }

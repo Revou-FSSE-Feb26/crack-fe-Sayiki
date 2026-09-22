@@ -26,9 +26,25 @@ export default function ModdersDirectoryPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
-    api.users.getAll()
-      .then((allUsers) => {
-        const dbModders = allUsers?.filter((u: any) => u.role === 'MODDER') || [];
+    // 100% PUBLIC: Use public modders directory endpoint (never blocked by auth)
+    api.modders.getDirectory()
+      .catch(() =>
+        api.modders.getAll().then((portfolios: any[]) => {
+          const modderMap = new Map();
+          (portfolios || []).forEach((p: any) => {
+            if (p.modder && !modderMap.has(p.modder.id)) {
+              modderMap.set(p.modder.id, {
+                ...p.modder,
+                portfolios: [p],
+                services: [],
+              });
+            }
+          });
+          return Array.from(modderMap.values());
+        }).catch(() => [])
+      )
+      .then((allModders: any) => {
+        const dbModders = Array.isArray(allModders) ? allModders : [];
         if (dbModders.length > 0) {
           setIsBackendConnected(true);
           const lubingStylesList = [

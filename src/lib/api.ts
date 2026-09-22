@@ -136,6 +136,7 @@ export const api = {
   },
   modders: {
     getAll: () => apiFetch<any[]>('/modders'),
+    getDirectory: () => apiFetch<any[]>('/modders/directory'),
     getById: (id: string) => apiFetch<any>(`/modders/${id}`),
   },
   products: {

@@ -56,10 +56,11 @@ function LoginForm() {
         }
       }
 
-      // If NOT fully authenticated (missing token or user), clean up any stale cookies so login form shows
-      api.auth.logout();
+      if (!hasToken || !hasUser) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     } catch (e) {
-      api.auth.logout();
     } finally {
       setIsCheckingSession(false);
     }

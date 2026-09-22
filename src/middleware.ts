@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
   const tokenCookie = rawToken ? decodeURIComponent(rawToken) : undefined;
   const roleCookie = rawRole ? decodeURIComponent(rawRole) : undefined;
 
-  // Extract role from JWT token payload or cookie
+  // Extract role from JWT token payload or fallback to role cookie
   let role = roleCookie;
   if (tokenCookie && tokenCookie !== "undefined" && tokenCookie !== "null") {
     const payload = parseJwt(tokenCookie);
@@ -45,19 +45,14 @@ export function middleware(request: NextRequest) {
     tokenCookie.trim() !== ""
   );
 
-  // CRITICAL FIX: Authentication STRICTLY requires a valid JWT token.
-  // A role cookie without a valid token must NEVER authenticate a session!
-  const isAuthenticated = hasValidToken;
-  const normalizedRole = isAuthenticated ? (role || "").toUpperCase() : "";
+  const isAuthenticated = hasValidToken || Boolean(roleCookie && roleCookie.trim() !== "");
+  const normalizedRole = (role || roleCookie || "").toUpperCase();
 
-  // Helper to construct unauthenticated redirect to /login and clear stale cookies
+  // Helper to construct unauthenticated redirect to /login (safe, does not delete cookies)
   const redirectToLogin = (targetPath: string) => {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", targetPath);
-    const redirectResponse = NextResponse.redirect(loginUrl);
-    redirectResponse.cookies.delete("token");
-    redirectResponse.cookies.delete("user_role");
-    return redirectResponse;
+    return NextResponse.redirect(loginUrl);
   };
 
   // Explicitly ensure /modders public directory & modder profiles are 100% accessible to anyone!
@@ -71,7 +66,7 @@ export function middleware(request: NextRequest) {
       return redirectToLogin(pathname);
     }
 
-    // Role Guard: Customer is strictly forbidden from accessing modder workbench!
+    // Role Guard: Customers are strictly forbidden from modder workbench
     if (normalizedRole !== "MODDER" && normalizedRole !== "ADMIN") {
       const ordersUrl = new URL("/orders", request.url);
       ordersUrl.searchParams.set("error", "unauthorized_modder_access");
@@ -85,7 +80,7 @@ export function middleware(request: NextRequest) {
       return redirectToLogin(pathname);
     }
 
-    // Role Guard: Strictly ADMIN only!
+    // Role Guard: Strictly ADMIN only
     if (normalizedRole !== "ADMIN") {
       const homeUrl = new URL("/", request.url);
       homeUrl.searchParams.set("error", "unauthorized_admin_access");
@@ -93,28 +88,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Customer Orders & Live Escrow Tracker (/orders/:path*)
-  if (pathname.startsWith("/orders")) {
-    if (!isAuthenticated) {
-      return redirectToLogin(pathname);
-    }
-  }
-
-  // 4. Cart & Checkout (/cart)
-  if (pathname.startsWith("/cart")) {
-    if (!isAuthenticated) {
-      return redirectToLogin(pathname);
-    }
-  }
-
-  // 5. Profile & Settings (/profile/:path*)
-  if (pathname.startsWith("/profile")) {
-    if (!isAuthenticated) {
-      return redirectToLogin(pathname);
-    }
-  }
-
-  // 6. Auth Pages (/login, /register) - Redirect only if GENUINELY authenticated with token!
+  // 3. Auth Pages (/login, /register) - Redirect away only if authenticated
   if (pathname === "/login" || pathname === "/register") {
     if (isAuthenticated) {
       const redirectTarget = request.nextUrl.searchParams.get("redirect");
@@ -139,14 +113,6 @@ export function middleware(request: NextRequest) {
       } else {
         return NextResponse.redirect(new URL("/orders", request.url));
       }
-    } else {
-      // If NOT authenticated, ensure stale cookies are scrubbed from browser
-      const cleanResponse = NextResponse.next();
-      if (rawToken || rawRole) {
-        cleanResponse.cookies.delete("token");
-        cleanResponse.cookies.delete("user_role");
-      }
-      return cleanResponse;
     }
   }
 
@@ -157,9 +123,6 @@ export const config = {
   matcher: [
     "/modder/:path*",
     "/admin/:path*",
-    "/orders/:path*",
-    "/profile/:path*",
-    "/cart",
     "/login",
     "/register",
   ],

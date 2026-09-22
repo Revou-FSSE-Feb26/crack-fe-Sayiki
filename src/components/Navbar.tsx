@@ -40,13 +40,22 @@ export function Navbar() {
     setMounted(true);
     let currentUser: UserProfile | null = null;
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
+    const storedToken = localStorage.getItem("token");
+    const hasToken = Boolean(storedToken && storedToken !== "undefined" && storedToken !== "null" && storedToken.trim() !== "");
+
+    if (storedUser && hasToken) {
       try {
         currentUser = JSON.parse(storedUser);
         setUser(currentUser);
       } catch (e) {
         setUser(null);
       }
+    } else {
+      // Incomplete session: user without token cannot make authorized calls
+      if (storedUser && !hasToken) {
+        localStorage.removeItem("user");
+      }
+      setUser(null);
     }
 
     syncAuthCookies();
@@ -75,15 +84,32 @@ export function Navbar() {
     const handleAuthChange = () => {
       syncAuthCookies();
       const updated = localStorage.getItem("user");
-      const parsed = updated ? JSON.parse(updated) : null;
-      setUser(parsed);
-      loadNotifs(parsed);
+      const token = localStorage.getItem("token");
+      const validToken = Boolean(token && token !== "undefined" && token !== "null" && token.trim() !== "");
+      if (updated && validToken) {
+        try {
+          const parsed = JSON.parse(updated);
+          setUser(parsed);
+          loadNotifs(parsed);
+          return;
+        } catch (e) {}
+      }
+      setUser(null);
+      loadNotifs(null);
     };
 
     const handleNotifsChange = () => {
       const stored = localStorage.getItem("user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      loadNotifs(parsed);
+      const token = localStorage.getItem("token");
+      const validToken = Boolean(token && token !== "undefined" && token !== "null" && token.trim() !== "");
+      if (stored && validToken) {
+        try {
+          const parsed = JSON.parse(stored);
+          loadNotifs(parsed);
+          return;
+        } catch (e) {}
+      }
+      loadNotifs(null);
     };
 
     // Close notifications on click outside

@@ -42,10 +42,11 @@ export default function RegisterPage(){
         }
       }
 
-      // If missing token or user, clear lingering cookies
-      api.auth.logout();
+      if (!hasToken || !hasUser) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     } catch (e) {
-      api.auth.logout();
     } finally {
       setIsCheckingSession(false);
     }

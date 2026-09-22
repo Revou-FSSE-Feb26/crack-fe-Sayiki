@@ -44,7 +44,6 @@ export function syncAuthCookies() {
     const token = localStorage.getItem('token');
     const userRaw = localStorage.getItem('user');
 
-    // If either token or user is missing/falsy, purge all cookies immediately
     if (
       !token ||
       token === 'undefined' ||
@@ -54,22 +53,18 @@ export function syncAuthCookies() {
       userRaw === 'undefined' ||
       userRaw === 'null'
     ) {
-      document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       return;
     }
 
-    document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+    const isSecure = window.location.protocol === 'https:';
+    const secureFlag = isSecure ? '; Secure' : '';
+
+    document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     const user = JSON.parse(userRaw);
     if (user?.role) {
-      document.cookie = `user_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `user_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
     }
-  } catch (e) {
-    document.cookie = 'token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    document.cookie = 'user_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-  }
+  } catch (e) {}
 }
 
 export const api = {

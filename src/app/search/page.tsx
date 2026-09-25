@@ -207,16 +207,135 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
 
-  const [items] = useState<MarketplaceItem[]>(MARKETPLACE_HARDWARE_ITEMS);
+  const [items, setItems] = useState<MarketplaceItem[]>(MARKETPLACE_HARDWARE_ITEMS);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("featured");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Create Listing Modal State
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState<"prebuilt" | "switches" | "stabilizers" | "lube">("prebuilt");
+  const [newPrice, setNewPrice] = useState<number | "">("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newCity, setNewCity] = useState("Jakarta");
+  const [newStock, setNewStock] = useState<number>(1);
+  const [newImage, setNewImage] = useState("/images/prebuilt-kb.webp");
+  const [newVariation, setNewVariation] = useState("Pre-Modded (Ready to Ship)");
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        setCurrentUser(u);
+        if (u.locationCity) setNewCity(u.locationCity);
+      }
+
+      const storedItems = localStorage.getItem("switchlab_marketplace_items");
+      if (storedItems) {
+        const parsed = JSON.parse(storedItems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems([...parsed, ...MARKETPLACE_HARDWARE_ITEMS]);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleApplyTemplate = (type: "prebuilt75" | "prebuiltTkl" | "switchesLubed") => {
+    if (type === "prebuilt75") {
+      setNewTitle("Custom MonsGeek M1W 75% (Lubed Akko Cream Yellow, Tape Mod)");
+      setNewCategory("prebuilt");
+      setNewPrice(1950000);
+      setNewDescription("Anodized purple aluminum case, PC plate, 3-layer tempest tape mod, poron gasket socks, tuned Akko Cream Yellow switches with Krytox 205g0.");
+      setNewImage("/images/prebuilt-kb.webp");
+      setNewVariation("75% Wireless Custom Build");
+      setNewStock(1);
+    } else if (type === "prebuiltTkl") {
+      setNewTitle("Tuned Tiger Lite TKL (Gateron Oil Kings, Staebies V2.1)");
+      setNewCategory("prebuilt");
+      setNewPrice(2300000);
+      setNewDescription("Clear smokey polycarbonate chassis, brass internal weight, hand-lubed and filmed Gateron Oil Kings, Lubed Staebies with zero rattle.");
+      setNewImage("/images/hero.jpg");
+      setNewVariation("TKL Complete Board (Thock Profile)");
+      setNewStock(1);
+    } else {
+      setNewTitle("Vertex V1 Linear Switch Pack (90x Hand-Lubed & Filmed)");
+      setNewCategory("switches");
+      setNewPrice(590000);
+      setNewDescription("90x custom linear switches lubed with Krytox 205g0 on stems/rails, 105 spring oil, Deskeys 0.3mm gasket film. Tested on hotswap tester.");
+      setNewImage("/images/switches.jpg");
+      setNewVariation("90x Hand-Tuned Pack");
+      setNewStock(5);
+    }
+  };
+
+  const handleCreateListing = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newPrice || Number(newPrice) <= 0) {
+      alert("Please provide a valid product title and price.");
+      return;
+    }
+
+    const priceNum = Number(newPrice);
+    const supplierName = currentUser ? `@${currentUser.name?.replace(/\s+/g, "") || "Artisan"}` : "@CommunityArtisan";
+
+    let badgeText = "COMMUNITY LISTING";
+    let badgeStyle = "bg-blue-50 text-blue-900 border-blue-900";
+    if (newCategory === "prebuilt") {
+      badgeText = "PRE-BUILT KEYBOARD";
+      badgeStyle = "bg-purple-50 text-purple-950 border-purple-900";
+    } else if (newCategory === "switches") {
+      badgeText = "CUSTOM SWITCHES";
+      badgeStyle = "bg-blue-50 text-blue-900 border-blue-900";
+    } else if (newCategory === "stabilizers") {
+      badgeText = "STABILIZERS";
+      badgeStyle = "bg-amber-50 text-amber-950 border-amber-900";
+    } else if (newCategory === "lube") {
+      badgeText = "TUNING SUPPLIES";
+      badgeStyle = "bg-emerald-50 text-emerald-950 border-emerald-900";
+    }
+
+    const newItem: MarketplaceItem = {
+      id: `custom-part-${Date.now()}`,
+      category: newCategory,
+      title: newTitle.trim(),
+      description: newDescription.trim() || "Hand-inspected custom mechanical keyboard hardware tuned for optimum sound and feel.",
+      provider: supplierName,
+      rating: 5.0,
+      price: priceNum,
+      pricing: `Rp ${priceNum.toLocaleString("id-ID")}`,
+      badge: badgeText,
+      badgeColor: badgeStyle,
+      image: newImage,
+      locationCity: newCity,
+      stock: Number(newStock) || 1,
+      variation: newVariation || "Ready to Ship",
+    };
+
+    const updated = [newItem, ...items];
+    setItems(updated);
+
+    try {
+      const storedCustom = localStorage.getItem("switchlab_marketplace_items");
+      const existingCustom = storedCustom ? JSON.parse(storedCustom) : [];
+      localStorage.setItem("switchlab_marketplace_items", JSON.stringify([newItem, ...existingCustom]));
+    } catch (err) {}
+
+    setIsSellModalOpen(false);
+    // Reset fields
+    setNewTitle("");
+    setNewPrice("");
+    setNewDescription("");
+    showToast(`✓ Successfully published "${newItem.title}" to Marketplace!`);
   };
 
   const handleAddToCart = (item: MarketplaceItem) => {
@@ -314,18 +433,30 @@ function SearchContent() {
               </p>
             </div>
 
-            {/* Quick Stats Box */}
-            <div className="bg-brand-lightBg border-2 border-slate-900 p-4 flex gap-6">
-              <div>
-                <div className="text-xs font-mono text-brand-textMuted uppercase">Stocked Items</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">{items.length} In Stock</div>
-              </div>
-              <div className="border-l-2 border-slate-300 pl-6">
-                <div className="text-xs font-mono text-brand-textMuted uppercase">Verified Suppliers</div>
-                <div className="text-xl font-mono font-bold text-brand-navy">
-                  {new Set(items.map((i) => i.provider)).size} Verified
+            {/* Quick Stats & Sell Action */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="bg-brand-lightBg border-2 border-slate-900 p-4 flex gap-6">
+                <div>
+                  <div className="text-xs font-mono text-brand-textMuted uppercase">Stocked Items</div>
+                  <div className="text-xl font-mono font-bold text-brand-navy">{items.length} In Stock</div>
+                </div>
+                <div className="border-l-2 border-slate-300 pl-6">
+                  <div className="text-xs font-mono text-brand-textMuted uppercase">Verified Suppliers</div>
+                  <div className="text-xl font-mono font-bold text-brand-navy">
+                    {new Set(items.map((i) => i.provider)).size} Verified
+                  </div>
                 </div>
               </div>
+
+              {/* Sell Modded Keyboard / Part Button */}
+              <button
+                type="button"
+                onClick={() => setIsSellModalOpen(true)}
+                className="px-5 py-4 bg-brand-navy hover:bg-slate-800 text-white font-mono text-xs font-bold uppercase tracking-wider border-2 border-brand-navy flex items-center justify-center gap-2 shadow-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <span className="text-base">➕</span>
+                <span>List Item for Sale</span>
+              </button>
             </div>
           </div>
         </div>
@@ -578,6 +709,210 @@ function SearchContent() {
             >
               Reset Search &amp; Filters
             </Button>
+          </div>
+        )}
+
+        {/* Sell / List Item Modal */}
+        {isSellModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs overflow-y-auto">
+            <div className="bg-white border-4 border-slate-900 max-w-xl w-full p-6 shadow-2xl my-8 font-mono">
+              <div className="flex justify-between items-center border-b-2 border-slate-900 pb-3 mb-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-navy bg-blue-50 border border-brand-navy px-2 py-0.5 inline-block mb-1">
+                    [ COMMUNITY MARKETPLACE SELLER ]
+                  </span>
+                  <h2 className="text-xl font-black text-brand-textMain uppercase tracking-tight">
+                    List Item for Sale
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSellModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 border-2 border-slate-900 font-bold text-slate-900 text-sm cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Quick Template Buttons for Instant Demo */}
+              <div className="mb-4 p-3 bg-amber-50 border-2 border-slate-900">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-950 mb-2">
+                  ⚡ 1-Click Quick Pre-fill Templates:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleApplyTemplate("prebuilt75")}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-900 text-[10px] font-bold text-slate-900 uppercase cursor-pointer"
+                  >
+                    ⌨️ Pre-Modded 75% Board
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyTemplate("prebuiltTkl")}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-900 text-[10px] font-bold text-slate-900 uppercase cursor-pointer"
+                  >
+                    ⌨️ Tuned TKL Board
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyTemplate("switchesLubed")}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-900 text-[10px] font-bold text-slate-900 uppercase cursor-pointer"
+                  >
+                    🔘 Hand-Lubed Switches
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleCreateListing} className="space-y-3.5 text-xs">
+                {/* Title */}
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                    Item Title &amp; Model:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. MonsGeek M1W 75% Custom (Lubed Oil Kings, Tape Mod)"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-900 focus:border-brand-navy focus:outline-none font-mono text-xs"
+                  />
+                </div>
+
+                {/* Category & Price Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                      Category:
+                    </label>
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-900 font-mono text-xs uppercase"
+                    >
+                      <option value="prebuilt">Pre-Built / Modded Keyboard</option>
+                      <option value="switches">Switches &amp; Packs</option>
+                      <option value="stabilizers">Stabilizers &amp; Parts</option>
+                      <option value="lube">Lube &amp; Tuning Tools</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                      Price (IDR):
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={1000}
+                      placeholder="e.g. 1950000"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value ? Number(e.target.value) : "")}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-900 focus:border-brand-navy focus:outline-none font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* City & Stock Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                      Shipping Location (City):
+                    </label>
+                    <select
+                      value={newCity}
+                      onChange={(e) => setNewCity(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-900 font-mono text-xs uppercase"
+                    >
+                      <option value="Jakarta">Jakarta</option>
+                      <option value="Bandung">Bandung</option>
+                      <option value="Depok">Depok</option>
+                      <option value="Surabaya">Surabaya</option>
+                      <option value="Semarang">Semarang</option>
+                      <option value="Yogyakarta">Yogyakarta</option>
+                      <option value="Bali">Bali</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                      Stock Quantity:
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={newStock}
+                      onChange={(e) => setNewStock(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-900 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Photo Preset */}
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                    Select Product Image:
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: "Pre-Built KB", url: "/images/prebuilt-kb.webp" },
+                      { label: "Custom Alu", url: "/images/hero.jpg" },
+                      { label: "Switches", url: "/images/switches.jpg" },
+                      { label: "Lube / Mod", url: "/images/lubing-swtiches.webp" },
+                    ].map((p) => (
+                      <button
+                        key={p.url}
+                        type="button"
+                        onClick={() => setNewImage(p.url)}
+                        className={`p-1 border-2 text-center transition-all ${
+                          newImage === p.url
+                            ? "border-brand-navy bg-blue-50 ring-2 ring-brand-navy"
+                            : "border-slate-300 hover:border-slate-800"
+                        }`}
+                      >
+                        <div className="h-12 bg-slate-100 overflow-hidden mb-1">
+                          <img src={p.url} alt={p.label} className="w-full h-full object-cover" />
+                        </div>
+                        <span className="block text-[9px] uppercase font-bold truncate">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-slate-800 mb-1">
+                    Specifications &amp; Modding Details:
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="List all specs, modding techniques performed (e.g. tape mod, lubing lubricant brand, stabilizer wire tuning, switch specs)..."
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border-2 border-slate-900 focus:border-brand-navy focus:outline-none font-mono text-xs"
+                  />
+                </div>
+
+                {/* Submit Actions */}
+                <div className="pt-3 border-t-2 border-slate-900 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSellModalOpen(false)}
+                    className="px-4 py-2 border-2 border-slate-900 hover:bg-slate-100 font-bold uppercase tracking-wider text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-brand-navy hover:bg-slate-800 text-white border-2 border-brand-navy font-bold uppercase tracking-wider text-xs shadow-xs"
+                  >
+                    Publish to Marketplace →
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>

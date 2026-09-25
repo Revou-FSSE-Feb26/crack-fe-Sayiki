@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Input } from "@/components/Input";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/Button";
 import { api, syncAuthCookies } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
@@ -12,6 +11,8 @@ type ServiceCategory =
   | "STABILIZER_MODS"
   | "CASE_AND_ACOUSTIC"
   | "CUSTOMIZATION_AESTHETICS";
+
+type HardwareCategory = "prebuilt" | "switches" | "stabilizers" | "lube";
 
 type ServiceOptionType =
   | "LUBE_TYPE"
@@ -26,7 +27,7 @@ interface OptionItem {
   extraPrice: number;
 }
 
-const CATEGORIES: { value: ServiceCategory; label: string; icon: string; desc: string }[] = [
+const SERVICE_CATEGORIES: { value: ServiceCategory; label: string; icon: string; desc: string }[] = [
   {
     value: "SWITCH_MODS",
     label: "Switch Mods & Lubing",
@@ -53,30 +54,17 @@ const CATEGORIES: { value: ServiceCategory; label: string; icon: string; desc: s
   },
 ];
 
-const getCategoryFallbackImage = (category: string) => {
-  switch (category) {
-    case "SWITCH_MODS":
-      return "/images/lubing-swtiches.webp";
-    case "STABILIZER_MODS":
-      return "/images/stabs.webp";
-    case "CASE_AND_ACOUSTIC":
-      return "/images/foam.jpg";
-    case "CUSTOMIZATION_AESTHETICS":
-    default:
-      return "/images/repair-kb.png";
-  }
-};
-
 const PRESET_PHOTOS = [
-  { label: "Switch Lubing", url: "/images/lubing-swtiches.webp", category: "SWITCH_MODS", icon: "🔘" },
-  { label: "Stabilizer Tuning", url: "/images/stabs.webp", category: "STABILIZER_MODS", icon: "⚖️" },
-  { label: "Acoustic Foams", url: "/images/foam.jpg", category: "CASE_AND_ACOUSTIC", icon: "🔊" },
-  { label: "Switches & Parts", url: "/images/switches.jpg", category: "SWITCH_MODS", icon: "🎛️" },
-  { label: "Full Custom Build", url: "/images/repair-kb.png", category: "CUSTOMIZATION_AESTHETICS", icon: "🔧" },
-  { label: "Prebuilt Keyboard", url: "/images/prebuilt-kb.webp", category: "CUSTOMIZATION_AESTHETICS", icon: "⌨️" },
+  { label: "Pre-Built Custom Keyboard", url: "/images/prebuilt-kb.webp", icon: "⌨️" },
+  { label: "Assembly & Tuning Bench", url: "/images/repair-kb.png", icon: "🔧" },
+  { label: "Custom Aluminum Board", url: "/images/hero.jpg", icon: "🖥️" },
+  { label: "Switch Lubing & Mods", url: "/images/lubing-swtiches.webp", icon: "🔘" },
+  { label: "Switches Pack", url: "/images/switches.jpg", icon: "🎛️" },
+  { label: "Stabilizer Tuning Kit", url: "/images/stabs.webp", icon: "⚖️" },
+  { label: "Acoustic Foams", url: "/images/foam.jpg", icon: "🔊" },
 ];
 
-const PRESETS = [
+const SERVICE_PRESETS = [
   {
     title: "Master Linear Switch Lubing & Filming",
     category: "SWITCH_MODS" as ServiceCategory,
@@ -113,20 +101,100 @@ const PRESETS = [
   },
 ];
 
-export default function CreateListingPage() {
+const HARDWARE_TEMPLATES = [
+  {
+    title: "Wobkey Rainy75 Deep Thock Edition (Custom Built)",
+    category: "prebuilt" as HardwareCategory,
+    price: 1450000,
+    condition: "Artisan Modded (Pre-built)",
+    variation: "Anodized Silver • FR4 Plate",
+    image: "/images/prebuilt-kb.webp",
+    city: "Jakarta",
+    stock: 2,
+    specs: ["Hand-lubed HMX Violet Switches (205g0)", "Wire-balanced Staebies V2.1", "3-layer Tempest Tape Mod", "Force Break Mod on case"],
+    description: "Full custom-built Wobkey Rainy75 tuned for maximum acoustic marbly thock. Fully wire-balanced stabilizers with zero rattle on Spacebar/Enter/Backspace. Shipped in original box with all accessories.",
+  },
+  {
+    title: "Custom MonsGeek M1W 75% (Lubed Akko Cream Yellow, Tape Mod)",
+    category: "prebuilt" as HardwareCategory,
+    price: 1950000,
+    condition: "Artisan Modded (Pre-built)",
+    variation: "Anodized Purple • PC Plate",
+    image: "/images/prebuilt-kb.webp",
+    city: "Jakarta",
+    stock: 1,
+    specs: ["Hand-lubed Akko Cream Yellow switches", "Tuned screw-in stabs", "3-layer tempest tape mod", "Poron gasket socks"],
+    description: "Custom 75% wireless mechanical keyboard built with aluminum CNC housing. Deep, creamy acoustic profile with tuned stabilizers.",
+  },
+  {
+    title: "Tuned Tiger Lite TKL (Gateron Oil Kings, Staebies V2.1)",
+    category: "prebuilt" as HardwareCategory,
+    price: 2300000,
+    condition: "Artisan Modded (Pre-built)",
+    variation: "Smoky Polycarbonate • FR4 Plate",
+    image: "/images/hero.jpg",
+    city: "Bandung",
+    stock: 1,
+    specs: ["Hand-lubed & filmed Gateron Oil Kings", "Machinist balanced Staebies V2.1", "Internal brass weight", "Holee mod stabs"],
+    description: "Tenkeyless custom board tuned for supreme clack and deep bottom-out acoustics. Includes custom sound dampeners.",
+  },
+  {
+    title: "Gateron Oil King Linear Switches (90x Pack)",
+    category: "switches" as HardwareCategory,
+    price: 450000,
+    condition: "Brand New (Precision Lubed)",
+    variation: "90x Switches (5-Pin PCB Mount)",
+    image: "/images/switches.jpg",
+    city: "Bandung",
+    stock: 5,
+    specs: ["Hand-brushed Krytox 205g0 on stems", "Krytox 105 bag-lubed 55g springs", "Deskeys 0.3mm Black Gasket Films"],
+    description: "Factory-fresh Gateron Oil Kings hand-lubed by verified artisan. Ultra-deep sound signature with butter smooth travel and tight stem tolerances.",
+  },
+  {
+    title: "Staebies V2.1 PCB Screw-In Stabilizers Kit",
+    category: "stabilizers" as HardwareCategory,
+    price: 265000,
+    condition: "Artisan Tuned & Balanced",
+    variation: "Clear Housing / Black Stem (6.25u + 4x 2u)",
+    image: "/images/stabs.webp",
+    city: "Surabaya",
+    stock: 4,
+    specs: ["Machinist stone wire balancing (zero tick)", "Krytox XHT-BDZ wire coating", "PCB Band-aid dampening washers included"],
+    description: "Ready-to-install Staebies V2.1 stabilizer set. Every wire is precision-flattened and tolerance checked on a machinist granite slab. Guaranteed tick-free.",
+  },
+  {
+    title: "Krytox GPL 205g0 + 105 Spring Oil & Brush Tuning Bundle",
+    category: "lube" as HardwareCategory,
+    price: 85000,
+    condition: "Brand New (Genuine Miller-Stephenson)",
+    variation: "5g Jar 205g0 + 5ml Dropper 105 + 2x Brushes",
+    image: "/images/lubing-swtiches.webp",
+    city: "Jakarta",
+    stock: 12,
+    specs: ["Authentic Miller-Stephenson Krytox 205g0", "Fine #00 detailing brush", "Stem holder grabber tool included"],
+    description: "Everything needed to lube your mechanical keyboard switches and stabilizers like a pro. Authentic formulation repackaged in airtight UV-resistant jars.",
+  },
+];
+
+function CreateListingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialMode =
+    searchParams.get("type") === "marketplace" || searchParams.get("type") === "hardware"
+      ? "HARDWARE"
+      : "SERVICE";
+
+  const [listingMode, setListingMode] = useState<"SERVICE" | "HARDWARE">(initialMode);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Form states
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<ServiceCategory>("SWITCH_MODS");
-  const [basePrice, setBasePrice] = useState<number>(150000);
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState<string>("");
-  const [imageInputMode, setImageInputMode] = useState<"upload" | "url" | "presets">("upload");
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [options, setOptions] = useState<OptionItem[]>([
+  // --- SERVICE FORM STATES ---
+  const [serviceTitle, setServiceTitle] = useState("");
+  const [serviceCategory, setServiceCategory] = useState<ServiceCategory>("SWITCH_MODS");
+  const [serviceBasePrice, setServiceBasePrice] = useState<number>(150000);
+  const [serviceDesc, setServiceDesc] = useState("");
+  const [serviceImageUrl, setServiceImageUrl] = useState<string>("");
+  const [serviceOptions, setServiceOptions] = useState<OptionItem[]>([
     {
       id: "opt_1",
       optionName: "Krytox 205g0 Brush Hand-Lubing",
@@ -135,6 +203,21 @@ export default function CreateListingPage() {
     },
   ]);
 
+  // --- HARDWARE / PRE-BUILT KEYBOARD FORM STATES ---
+  const [hwTitle, setHwTitle] = useState("");
+  const [hwCategory, setHwCategory] = useState<HardwareCategory>("prebuilt");
+  const [hwPrice, setHwPrice] = useState<number | "">(1450000);
+  const [hwCondition, setHwCondition] = useState("Artisan Modded (Pre-built)");
+  const [hwVariation, setHwVariation] = useState("Pre-Modded (Ready to Ship)");
+  const [hwStock, setHwStock] = useState<number>(1);
+  const [hwCity, setHwCity] = useState("Jakarta");
+  const [hwImageUrl, setHwImageUrl] = useState("/images/prebuilt-kb.webp");
+  const [hwSpecsText, setHwSpecsText] = useState("Hand-lubed switches\nWire-balanced stabilizers\nTempest tape mod");
+  const [hwDesc, setHwDesc] = useState("");
+
+  // Common UI states
+  const [imageInputMode, setImageInputMode] = useState<"presets" | "upload" | "url">("presets");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,11 +229,11 @@ export default function CreateListingPage() {
       if (stored) {
         userObj = JSON.parse(stored);
         setCurrentUser(userObj);
+        if (userObj.locationCity) setHwCity(userObj.locationCity);
         syncAuthCookies();
       }
     } catch (e) {}
 
-    // Security Guard: Modders and Admins only
     if (!userObj) {
       router.replace("/login?redirect=/modder/create-listing");
       return;
@@ -162,15 +245,22 @@ export default function CreateListingPage() {
     }
   }, [router]);
 
-  const applyPreset = (preset: typeof PRESETS[0]) => {
-    setTitle(preset.title);
-    setCategory(preset.category);
-    setBasePrice(preset.basePrice);
-    setDescription(preset.desc);
-    if (preset.imageUrl) {
-      setImageUrl(preset.imageUrl);
+  // Update listing mode when search params change
+  useEffect(() => {
+    const t = searchParams.get("type");
+    if (t === "marketplace" || t === "hardware") {
+      setListingMode("HARDWARE");
     }
-    setOptions(
+  }, [searchParams]);
+
+  // Apply service template
+  const applyServicePreset = (preset: typeof SERVICE_PRESETS[0]) => {
+    setServiceTitle(preset.title);
+    setServiceCategory(preset.category);
+    setServiceBasePrice(preset.basePrice);
+    setServiceDesc(preset.desc);
+    if (preset.imageUrl) setServiceImageUrl(preset.imageUrl);
+    setServiceOptions(
       preset.options.map((opt, idx) => ({
         id: `opt_${Date.now()}_${idx}`,
         optionName: opt.optionName,
@@ -178,6 +268,22 @@ export default function CreateListingPage() {
         extraPrice: opt.extraPrice,
       }))
     );
+    setError(null);
+  };
+
+  // Apply hardware template (Prebuilt Keyboards, Switches, etc.)
+  const applyHardwareTemplate = (tpl: typeof HARDWARE_TEMPLATES[0]) => {
+    setHwTitle(tpl.title);
+    setHwCategory(tpl.category);
+    setHwPrice(tpl.price);
+    setHwCondition(tpl.condition);
+    setHwVariation(tpl.variation);
+    setHwImageUrl(tpl.image);
+    setHwCity(tpl.city);
+    setHwStock(tpl.stock);
+    setHwSpecsText(tpl.specs.join("\n"));
+    setHwDesc(tpl.description);
+    setError(null);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,9 +331,17 @@ export default function CreateListingPage() {
           ctx?.drawImage(img, 0, 0, width, height);
 
           const optimized = canvas.toDataURL("image/jpeg", 0.85);
-          setImageUrl(optimized);
+          if (listingMode === "HARDWARE") {
+            setHwImageUrl(optimized);
+          } else {
+            setServiceImageUrl(optimized);
+          }
         } catch (err) {
-          setImageUrl(event.target?.result as string);
+          if (listingMode === "HARDWARE") {
+            setHwImageUrl(event.target?.result as string);
+          } else {
+            setServiceImageUrl(event.target?.result as string);
+          }
         } finally {
           setUploadingImage(false);
         }
@@ -245,28 +359,7 @@ export default function CreateListingPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleAddOption = () => {
-    setOptions((prev) => [
-      ...prev,
-      {
-        id: `opt_${Date.now()}`,
-        optionName: "",
-        optionType: "ADDON_SERVICE",
-        extraPrice: 25000,
-      },
-    ]);
-  };
-
-  const handleRemoveOption = (id: string) => {
-    setOptions((prev) => prev.filter((o) => o.id !== id));
-  };
-
-  const handleUpdateOption = (id: string, field: keyof OptionItem, value: any) => {
-    setOptions((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, [field]: value } : o))
-    );
-  };
-
+  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser?.id) {
@@ -274,17 +367,96 @@ export default function CreateListingPage() {
       return;
     }
 
-    if (!title.trim()) {
+    // MODE 1: HARDWARE / PRE-MODDED KEYBOARD FOR MARKETPLACE
+    if (listingMode === "HARDWARE") {
+      if (!hwTitle.trim()) {
+        setError("Please enter a listing title for the hardware/keyboard.");
+        return;
+      }
+      const priceNum = Number(hwPrice);
+      if (!priceNum || priceNum <= 0) {
+        setError("Please enter a valid price in Rupiah.");
+        return;
+      }
+      if (!hwDesc.trim()) {
+        setError("Please write a description of the build specifications.");
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        let badgeText = "MODDED KEYBOARD";
+        let badgeStyle = "bg-purple-50 text-purple-950 border-purple-900";
+        if (hwCategory === "switches") {
+          badgeText = "SWITCHES";
+          badgeStyle = "bg-blue-50 text-blue-950 border-blue-900";
+        } else if (hwCategory === "stabilizers") {
+          badgeText = "STABILIZERS";
+          badgeStyle = "bg-amber-50 text-amber-950 border-amber-900";
+        } else if (hwCategory === "lube") {
+          badgeText = "TUNING SUPPLIES";
+          badgeStyle = "bg-emerald-50 text-emerald-950 border-emerald-900";
+        }
+
+        const supplierName = currentUser ? currentUser.name : "Artisan Studio";
+
+        const newItem = {
+          id: `custom-part-${Date.now()}`,
+          category: hwCategory,
+          title: hwTitle.trim(),
+          description: hwDesc.trim(),
+          provider: supplierName,
+          rating: 5.0,
+          price: priceNum,
+          pricing: `Rp ${priceNum.toLocaleString("id-ID")}`,
+          badge: badgeText,
+          badgeColor: badgeStyle,
+          image: hwImageUrl || "/images/prebuilt-kb.webp",
+          locationCity: hwCity || "Jakarta",
+          stock: Number(hwStock) || 1,
+          variation: hwVariation.trim() || hwCondition || "Ready to Ship",
+        };
+
+        // Persist to localStorage
+        const storedCustom = localStorage.getItem("switchlab_marketplace_items");
+        const existingCustom = storedCustom ? JSON.parse(storedCustom) : [];
+        localStorage.setItem(
+          "switchlab_marketplace_items",
+          JSON.stringify([newItem, ...existingCustom])
+        );
+
+        // Notify
+        addNotification({
+          targetRole: "MODDER",
+          targetUserId: currentUser.id,
+          type: "WORKBENCH",
+          title: "⌨️ Keyboard Listing Live on Marketplace!",
+          message: `Your pre-built keyboard "${hwTitle.trim()}" is now live in the Marketplace catalog!`,
+          link: "/search",
+        });
+
+        // Redirect to Marketplace
+        router.push("/search?created=true");
+      } catch (err: any) {
+        setError(err.message || "Failed to publish keyboard listing.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // MODE 2: TUNING SERVICE
+    if (!serviceTitle.trim()) {
       setError("Please enter a service listing title.");
       return;
     }
-
-    if (basePrice <= 0) {
+    if (serviceBasePrice <= 0) {
       setError("Base price must be greater than Rp 0.");
       return;
     }
-
-    if (!description.trim()) {
+    if (!serviceDesc.trim()) {
       setError("Please enter a detailed description of what this service includes.");
       return;
     }
@@ -293,8 +465,7 @@ export default function CreateListingPage() {
     setLoading(true);
 
     try {
-      // Filter out empty options
-      const formattedOptions = options
+      const formattedOptions = serviceOptions
         .filter((o) => o.optionName.trim() !== "")
         .map((o) => ({
           optionName: o.optionName.trim(),
@@ -304,29 +475,26 @@ export default function CreateListingPage() {
 
       await api.listings.create({
         modderId: currentUser.id,
-        title: title.trim(),
-        description: description.trim(),
-        basePrice: Number(basePrice),
-        category: category,
-        imageUrl: imageUrl.trim() || undefined,
+        title: serviceTitle.trim(),
+        description: serviceDesc.trim(),
+        basePrice: Number(serviceBasePrice),
+        category: serviceCategory,
+        imageUrl: serviceImageUrl.trim() || undefined,
         options: formattedOptions.length > 0 ? formattedOptions : undefined,
       });
 
-      // Notify the modder
       addNotification({
         targetRole: "MODDER",
         targetUserId: currentUser.id,
         type: "WORKBENCH",
         title: "✨ Service Listing Published!",
-        message: `Your service "${title.trim()}" is now live in the Marketplace and Services directory. Customers can now book tuning with Escrow protection.`,
+        message: `Your tuning service "${serviceTitle.trim()}" is now live in the Services directory with Escrow protection.`,
         link: "/services",
       });
 
-      // Redirect back to Modder Dashboard with success parameter
       router.push("/modder/dashboard?tab=services&created=true");
     } catch (err: any) {
-      console.error("Failed to create listing:", err);
-      setError(err.message || "Failed to publish listing to marketplace. Please try again.");
+      setError(err.message || "Failed to publish service. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -335,9 +503,9 @@ export default function CreateListingPage() {
   if (!mounted || !currentUser) {
     return (
       <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4">
-        <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+        <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full font-mono">
           <div className="inline-block animate-spin w-8 h-8 border-4 border-brand-navy border-t-transparent mb-4"></div>
-          <h2 className="text-base font-bold font-mono text-brand-textMain uppercase">Checking Studio Access...</h2>
+          <h2 className="text-base font-bold text-brand-textMain uppercase">Checking Studio Access...</h2>
         </div>
       </div>
     );
@@ -352,208 +520,618 @@ export default function CreateListingPage() {
             🛠️ Workbench
           </Link>
           <span>/</span>
-          <span className="text-brand-navy">Create Service / Marketplace Listing</span>
+          <span className="text-brand-navy">
+            {listingMode === "HARDWARE"
+              ? "Sell Keyboard & Hardware (Marketplace)"
+              : "Create Tuning Service"}
+          </span>
         </div>
 
         {/* Page Header */}
-        <div className="bg-brand-sidebar border-2 border-slate-900 p-6 md:p-8 mb-8 shadow-sm">
+        <div className="bg-brand-sidebar border-2 border-slate-900 p-6 md:p-8 mb-6 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <div className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-amber-600 bg-amber-50 text-amber-900 mb-2">
-                [ MODDER STUDIO LISTING CREATOR ]
+              <div className="inline-block px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border-2 border-brand-navy bg-brand-lightBg text-brand-navy mb-2">
+                {listingMode === "HARDWARE"
+                  ? "[ MARKETPLACE SELLER PORTAL ]"
+                  : "[ MODDER STUDIO TUNING CREATOR ]"}
               </div>
               <h1 className="text-2xl md:text-3xl font-black text-brand-textMain tracking-tight">
-                Publish a Tuning Service to Marketplace
+                {listingMode === "HARDWARE"
+                  ? "Sell Pre-Built Keyboard or Hardware"
+                  : "Publish a Keyboard Tuning Service"}
               </h1>
               <p className="text-xs text-brand-textMuted uppercase tracking-wider mt-1">
                 Studio: @{currentUser.name} • Location: {currentUser.locationCity || "Jakarta, Indonesia"}
               </p>
             </div>
 
-            <Link href="/modder/dashboard">
-              <Button variant="secondary" className="text-xs uppercase font-bold">
-                ← Back to Workbench
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href={listingMode === "HARDWARE" ? "/search" : "/services"}>
+                <Button variant="secondary" className="text-xs uppercase font-bold">
+                  {listingMode === "HARDWARE" ? "← View Marketplace" : "← View Services"}
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Quick Pre-fill Suggestion Templates */}
-        <div className="mb-8 p-4 bg-white border-2 border-slate-800">
-          <div className="text-xs font-bold uppercase text-brand-navy mb-2 flex items-center gap-1.5">
-            <span>⚡ Quick-Start Service Templates:</span>
-            <span className="text-[10px] text-slate-500 font-normal">(Click to auto-populate form)</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            {PRESETS.map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => applyPreset(p)}
-                className="text-left p-2.5 bg-brand-lightBg hover:bg-amber-50 border border-slate-300 hover:border-slate-800 transition-colors cursor-pointer group"
-              >
-                <div className="text-xs font-bold text-slate-900 group-hover:text-brand-navy">
-                  {p.title}
-                </div>
-                <div className="text-[10px] text-emerald-700 font-bold mt-1">
-                  Rp {p.basePrice.toLocaleString()} • {p.options.length} options
-                </div>
-              </button>
-            ))}
-          </div>
+        {/* MODE TOGGLE TABS (CRITICAL: Allows seamless switching between Service & Selling Keyboard!) */}
+        <div className="flex border-2 border-slate-900 bg-slate-100 p-1 mb-8 shadow-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setListingMode("HARDWARE");
+              setError(null);
+            }}
+            className={`flex-1 py-3 px-4 font-mono font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+              listingMode === "HARDWARE"
+                ? "bg-brand-navy text-white shadow-xs"
+                : "text-slate-700 hover:text-brand-navy hover:bg-white"
+            }`}
+          >
+            <span className="text-base">⌨️</span>
+            <span>1. Sell Pre-Built Keyboard &amp; Hardware (Marketplace)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setListingMode("SERVICE");
+              setError(null);
+            }}
+            className={`flex-1 py-3 px-4 font-mono font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+              listingMode === "SERVICE"
+                ? "bg-brand-navy text-white shadow-xs"
+                : "text-slate-700 hover:text-brand-navy hover:bg-white"
+            }`}
+          >
+            <span className="text-base">🛠️</span>
+            <span>2. Offer Keyboard Tuning Service (Escrow Protected)</span>
+          </button>
         </div>
 
-        {error && (
-          <div className="p-4 bg-red-50 border-2 border-red-500 text-red-700 text-xs font-mono mb-6">
-            ⚠ {error}
-          </div>
-        )}
-
-        {/* Main Grid: Form + Live Card Preview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form Column (2 cols) */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
-            {/* Title */}
-            <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
-                1. Service Identification
-              </h2>
-
-              <Input
-                label="Service / Listing Title"
-                type="text"
-                placeholder="e.g. Master Linear Switch Lubing & Filming"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-
-              {/* Category Selector */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-2">
-                  Category Type
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {CATEGORIES.map((cat) => {
-                    const isSelected = category === cat.value;
-                    return (
-                      <div
-                        key={cat.value}
-                        onClick={() => setCategory(cat.value)}
-                        className={`p-3 border-2 cursor-pointer transition-all ${
-                          isSelected
-                            ? "bg-brand-navy text-white border-brand-navy shadow-xs"
-                            : "bg-white border-slate-800 text-slate-800 hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 font-bold text-xs">
-                          <span>{cat.icon}</span>
-                          <span>{cat.label}</span>
-                        </div>
-                        <p className={`text-[10px] mt-1 leading-tight ${isSelected ? "text-blue-100" : "text-slate-500"}`}>
-                          {cat.desc}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
+        {/* ============================================================== */}
+        {/* MODE 1: HARDWARE & PRE-MODDED KEYBOARD LISTING FORM            */}
+        {/* ============================================================== */}
+        {listingMode === "HARDWARE" && (
+          <div>
+            {/* Quick Pre-fill Suggestion Templates */}
+            <div className="mb-8 p-4 bg-white border-2 border-slate-900 shadow-xs">
+              <div className="text-xs font-bold uppercase text-brand-navy mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span>⚡ Quick 1-Click Keyboard &amp; Hardware Templates:</span>
+                  <span className="text-[10px] text-slate-500 font-normal">(Click to auto-populate form instantly)</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {HARDWARE_TEMPLATES.map((tpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => applyHardwareTemplate(tpl)}
+                    className="text-left p-3 bg-brand-lightBg hover:bg-amber-50 border-2 border-slate-300 hover:border-slate-900 transition-colors cursor-pointer group"
+                  >
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-brand-navy line-clamp-1">
+                      {tpl.title}
+                    </div>
+                    <div className="text-[11px] text-emerald-700 font-bold mt-1">
+                      Rp {tpl.price.toLocaleString("id-ID")}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                      {tpl.condition}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* 2. Service Cover Photo & Media */}
-            <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <div>
-                  <h2 className="text-sm font-bold uppercase text-brand-textMain">
-                    2. Service Cover Photo & Media
+            {error && (
+              <div className="p-4 bg-red-50 border-2 border-red-500 text-red-700 text-xs font-mono mb-6">
+                ⚠ {error}
+              </div>
+            )}
+
+            {/* Main Form & Preview Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+                {/* Step 1: Basic Information */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    1. Keyboard Identity &amp; Category
                   </h2>
-                  <p className="text-[10px] text-brand-textMuted">
-                    Add a picture for your listing (Upload local image, choose a preset, or paste URL)
-                  </p>
-                </div>
-                {imageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("")}
-                    className="text-[10px] text-red-600 hover:text-red-800 font-bold uppercase underline cursor-pointer"
-                  >
-                    ✕ Clear Photo
-                  </button>
-                )}
-              </div>
 
-              {/* Mode Switcher Tabs */}
-              <div className="flex border-b border-slate-200 gap-2 pb-2">
-                <button
-                  type="button"
-                  onClick={() => setImageInputMode("upload")}
-                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
-                    imageInputMode === "upload"
-                      ? "bg-brand-navy text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  📁 Upload Device Photo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImageInputMode("presets")}
-                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
-                    imageInputMode === "presets"
-                      ? "bg-brand-navy text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  🖼️ Studio Presets
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImageInputMode("url")}
-                  className={`px-3 py-1 text-xs font-bold uppercase transition-all cursor-pointer ${
-                    imageInputMode === "url"
-                      ? "bg-brand-navy text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  🌐 Image URL Link
-                </button>
-              </div>
-
-              {/* Mode 1: Local File Upload */}
-              {imageInputMode === "upload" && (
-                <div className="space-y-3">
-                  <label className="border-2 border-dashed border-slate-400 hover:border-brand-navy p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Product Title *
+                    </label>
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      disabled={uploadingImage}
+                      type="text"
+                      placeholder="e.g. Wobkey Rainy75 Deep Thock Edition (Custom Built)"
+                      value={hwTitle}
+                      onChange={(e) => setHwTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm text-brand-textMain focus:outline-none focus:border-brand-navy shadow-xs"
+                      required
                     />
-                    <span className="text-3xl mb-2">{uploadingImage ? "⚙️" : "📷"}</span>
-                    <span className="text-xs font-bold text-slate-800 uppercase">
-                      {uploadingImage ? "Processing image..." : "Click to choose photo from computer/phone"}
-                    </span>
-                    <span className="text-[10px] text-slate-500 mt-1">
-                      Supports JPG, PNG, WebP • Auto-optimized for fast load
-                    </span>
-                  </label>
-                </div>
-              )}
+                  </div>
 
-              {/* Mode 2: Studio Presets */}
-              {imageInputMode === "presets" && (
-                <div className="space-y-2">
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                    Select a curated mechanical keyboard tuning photo:
+                  <div>
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-2">
+                      Marketplace Category *
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { val: "prebuilt", label: "Modded Keyboards", icon: "⌨️" },
+                        { val: "switches", label: "Switches", icon: "🔘" },
+                        { val: "stabilizers", label: "Stabilizers", icon: "⚖️" },
+                        { val: "lube", label: "Lubes & Tools", icon: "🧈" },
+                      ].map((cat) => (
+                        <button
+                          key={cat.val}
+                          type="button"
+                          onClick={() => setHwCategory(cat.val as HardwareCategory)}
+                          className={`p-3 border-2 text-left cursor-pointer transition-all ${
+                            hwCategory === cat.val
+                              ? "border-brand-navy bg-blue-50/70 shadow-xs"
+                              : "border-slate-300 hover:border-slate-800 bg-white"
+                          }`}
+                        >
+                          <div className="text-xl mb-1">{cat.icon}</div>
+                          <div className="text-xs font-bold text-brand-textMain">{cat.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                        Item Condition *
+                      </label>
+                      <select
+                        value={hwCondition}
+                        onChange={(e) => setHwCondition(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs focus:outline-none focus:border-brand-navy"
+                      >
+                        <option value="Artisan Modded (Pre-built)">Artisan Modded (Pre-built &amp; Tested)</option>
+                        <option value="Brand New (Precision Lubed)">Brand New (Precision Lubed)</option>
+                        <option value="Brand New (Unopened)">Brand New (Unopened / In Box)</option>
+                        <option value="Lightly Used (Cleaned)">Lightly Used (Cleaned &amp; Tested)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                        Variant / Layout Spec
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Anodized Silver • FR4 Plate"
+                        value={hwVariation}
+                        onChange={(e) => setHwVariation(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs text-brand-textMain focus:outline-none focus:border-brand-navy shadow-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2: Pricing, Stock & City */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    2. Pricing, Stock &amp; Shipping Location
+                  </h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                        Price (Rp) *
+                      </label>
+                      <input
+                        type="number"
+                        min="1000"
+                        step="5000"
+                        placeholder="e.g. 1450000"
+                        value={hwPrice === "" ? "" : hwPrice}
+                        onChange={(e) => setHwPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                        className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm font-bold text-emerald-800 focus:outline-none focus:border-brand-navy shadow-xs"
+                        required
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        {hwPrice ? `Rp ${Number(hwPrice).toLocaleString("id-ID")}` : "Enter amount"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                        Stock Quantity *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="999"
+                        value={hwStock}
+                        onChange={(e) => setHwStock(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm text-brand-textMain focus:outline-none focus:border-brand-navy shadow-xs"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                        Dispatch City *
+                      </label>
+                      <select
+                        value={hwCity}
+                        onChange={(e) => setHwCity(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs focus:outline-none focus:border-brand-navy"
+                      >
+                        <option value="Jakarta">Jakarta</option>
+                        <option value="Bandung">Bandung</option>
+                        <option value="Surabaya">Surabaya</option>
+                        <option value="Tangerang">Tangerang</option>
+                        <option value="Yogyakarta">Yogyakarta</option>
+                        <option value="Semarang">Semarang</option>
+                        <option value="Medan">Medan</option>
+                        <option value="Bali">Bali</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3: Photos */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    3. Cover Photo &amp; Gallery
+                  </h2>
+
+                  <div className="flex gap-2">
+                    {[
+                      { mode: "presets", label: "📸 Preset Photos" },
+                      { mode: "upload", label: "📤 Upload Image" },
+                      { mode: "url", label: "🔗 Image URL" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.mode}
+                        type="button"
+                        onClick={() => setImageInputMode(tab.mode as any)}
+                        className={`px-3 py-1.5 text-xs font-bold border-2 cursor-pointer transition-all ${
+                          imageInputMode === tab.mode
+                            ? "border-brand-navy bg-brand-navy text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-slate-800"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {imageInputMode === "presets" && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {PRESET_PHOTOS.map((photo, i) => {
+                        const isSelected = hwImageUrl === photo.url;
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => setHwImageUrl(photo.url)}
+                            className={`border-2 p-1.5 cursor-pointer transition-all ${
+                              isSelected
+                                ? "border-brand-navy bg-blue-50"
+                                : "border-slate-300 hover:border-slate-800 bg-white"
+                            }`}
+                          >
+                            <div className="h-16 overflow-hidden bg-slate-100 mb-1 border border-slate-200">
+                              <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-800">
+                              <span className="truncate">{photo.icon} {photo.label}</span>
+                              {isSelected && <span className="text-brand-navy">✓</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {imageInputMode === "upload" && (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="block w-full text-xs font-mono text-slate-700 file:mr-4 file:py-2.5 file:px-4 file:border-2 file:border-slate-900 file:text-xs file:font-bold file:bg-brand-navy file:text-white hover:file:bg-slate-800 file:cursor-pointer"
+                      />
+                      {uploadingImage && (
+                        <div className="text-xs text-brand-navy font-bold mt-2">
+                          Optimizing image...
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {imageInputMode === "url" && (
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... or public image link"
+                      value={hwImageUrl}
+                      onChange={(e) => setHwImageUrl(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs text-brand-textMain focus:outline-none focus:border-brand-navy shadow-xs"
+                    />
+                  )}
+                </div>
+
+                {/* Step 4: Modifications Specs & Description */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    4. Modifications &amp; Sound Profile Details
+                  </h2>
+
+                  <div>
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Modification Specs List (1 per line)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Hand-lubed switches with Krytox 205g0&#10;Wire-balanced stabilizers&#10;Tempest tape mod"
+                      value={hwSpecsText}
+                      onChange={(e) => setHwSpecsText(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs focus:outline-none focus:border-brand-navy"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
+                      Shows up as specification badges on the Marketplace card.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Full Description &amp; Build Notes *
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Describe what's included, acoustic sound profile, packaging, or accessories..."
+                      value={hwDesc}
+                      onChange={(e) => setHwDesc(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs focus:outline-none focus:border-brand-navy"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Action */}
+                <div className="p-4 bg-brand-sidebar border-2 border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs text-brand-textMuted">
+                    ✓ Once published, this pre-built keyboard is instantly live in the Marketplace!
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isLoading={loading}
+                    className="w-full sm:w-auto px-8 py-3 uppercase font-bold text-xs tracking-wider"
+                  >
+                    {loading ? "Publishing to Marketplace..." : "🚀 Publish Keyboard to Marketplace →"}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Live Preview Column (Hardware Card) */}
+              <div className="space-y-4">
+                <div className="sticky top-24">
+                  <span className="block text-xs font-bold uppercase text-brand-navy mb-2">
+                    👁️ Live Marketplace Card Preview:
                   </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+                  <div className="bg-white border-2 border-slate-900 flex flex-col justify-between shadow-xs">
+                    <div className="relative h-44 bg-slate-100 border-b-2 border-slate-900 overflow-hidden">
+                      <img
+                        src={hwImageUrl || "/images/prebuilt-kb.webp"}
+                        alt={hwTitle || "Preview"}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider border bg-purple-50 text-purple-950 border-purple-900">
+                        {hwCategory === "prebuilt"
+                          ? "MODDED KEYBOARD"
+                          : hwCategory === "switches"
+                          ? "SWITCHES"
+                          : hwCategory === "stabilizers"
+                          ? "STABILIZERS"
+                          : "TUNING SUPPLIES"}
+                      </span>
+                      <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 text-[10px] font-mono font-bold bg-white/95 border border-slate-900 text-slate-800">
+                        📍 {hwCity || "Jakarta"}
+                      </span>
+                    </div>
+
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-mono text-brand-textMuted mb-1">
+                          <span className="font-bold text-brand-navy truncate max-w-[150px]">
+                            @{currentUser.name}
+                          </span>
+                          <span className="text-amber-500 font-bold">★ 5.0 (New)</span>
+                        </div>
+
+                        <h3 className="font-bold text-sm text-brand-textMain mb-1.5 leading-snug line-clamp-2">
+                          {hwTitle || "Untitled Pre-Modded Mechanical Keyboard"}
+                        </h3>
+
+                        <p className="text-xs text-slate-600 line-clamp-2 mb-3 leading-relaxed">
+                          {hwDesc || "Specifications and modification details will appear here."}
+                        </p>
+
+                        {hwSpecsText.trim() && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {hwSpecsText
+                              .split("\n")
+                              .filter((s) => s.trim())
+                              .slice(0, 2)
+                              .map((spec, i) => (
+                                <span
+                                  key={i}
+                                  className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 text-[10px] text-slate-700 font-mono truncate max-w-[180px]"
+                                >
+                                  ✓ {spec}
+                                </span>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-mono text-brand-textMuted uppercase">Price</div>
+                          <div className="text-base font-bold text-brand-navy">
+                            Rp {Number(hwPrice || 0).toLocaleString("id-ID")}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-300 font-bold block">
+                            {hwStock} in stock
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-brand-lightBg border-t-2 border-slate-900">
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-2 bg-brand-navy text-white text-xs font-bold uppercase tracking-wider border-2 border-brand-navy opacity-90 cursor-not-allowed"
+                      >
+                        Add to Cart 🛒
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-300 text-[11px] text-amber-900 leading-snug">
+                    💡 <strong>Instant Marketplace Sync:</strong> When published, this listing will be immediately discoverable in the <strong>Marketplace</strong> for customers to buy!
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* MODE 2: TUNING SERVICE LISTING FORM                            */}
+        {/* ============================================================== */}
+        {listingMode === "SERVICE" && (
+          <div>
+            {/* Quick Pre-fill Suggestion Templates */}
+            <div className="mb-8 p-4 bg-white border-2 border-slate-800">
+              <div className="text-xs font-bold uppercase text-brand-navy mb-2 flex items-center gap-1.5">
+                <span>⚡ Quick-Start Service Templates:</span>
+                <span className="text-[10px] text-slate-500 font-normal">(Click to auto-populate form)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {SERVICE_PRESETS.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => applyServicePreset(p)}
+                    className="text-left p-2.5 bg-brand-lightBg hover:bg-amber-50 border border-slate-300 hover:border-slate-800 transition-colors cursor-pointer group"
+                  >
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-brand-navy">
+                      {p.title}
+                    </div>
+                    <div className="text-[11px] text-emerald-700 font-bold mt-1">
+                      Rp {p.basePrice.toLocaleString()} • {p.options.length} options
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 border-2 border-red-500 text-red-700 text-xs font-mono mb-6">
+                ⚠ {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+                {/* Title */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    1. Service Identification
+                  </h2>
+                  <div>
+                    <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Service Title *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Master Linear Switch Lubing & Filming (Krytox 205g0)"
+                      value={serviceTitle}
+                      onChange={(e) => setServiceTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm text-brand-textMain focus:outline-none focus:border-brand-navy shadow-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-2">
+                      Service Category *
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {SERVICE_CATEGORIES.map((cat) => {
+                        const isSelected = serviceCategory === cat.value;
+                        return (
+                          <div
+                            key={cat.value}
+                            onClick={() => setServiceCategory(cat.value)}
+                            className={`p-3.5 border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? "border-brand-navy bg-blue-50/60 shadow-xs"
+                                : "border-slate-300 hover:border-slate-800 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{cat.icon}</span>
+                              <span className="font-bold text-xs text-brand-textMain">{cat.label}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-2">{cat.desc}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Base Pricing */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    2. Base Pricing
+                  </h2>
+                  <div>
+                    <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Base Starting Price (IDR) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1000"
+                      step="5000"
+                      value={serviceBasePrice}
+                      onChange={(e) => setServiceBasePrice(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs md:text-sm font-bold text-emerald-800 focus:outline-none focus:border-brand-navy shadow-xs"
+                      required
+                    />
+                    <span className="text-[11px] text-slate-500 font-mono mt-1 block">
+                      Rp {serviceBasePrice.toLocaleString()} (Starting price for base tuning)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cover Photo */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    3. Cover Photo
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {PRESET_PHOTOS.map((photo, i) => {
-                      const isSelected = imageUrl === photo.url;
+                      const isSelected = serviceImageUrl === photo.url;
                       return (
                         <div
                           key={i}
-                          onClick={() => setImageUrl(photo.url)}
+                          onClick={() => setServiceImageUrl(photo.url)}
                           className={`border-2 p-1.5 cursor-pointer transition-all ${
                             isSelected
                               ? "border-brand-navy bg-blue-50"
@@ -572,274 +1150,113 @@ export default function CreateListingPage() {
                     })}
                   </div>
                 </div>
-              )}
 
-              {/* Mode 3: Custom URL */}
-              {imageInputMode === "url" && (
-                <div>
-                  <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
-                    Image Direct URL (https://...)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/... or https://i.imgur.com/..."
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-800 focus:border-brand-navy text-brand-textMain font-mono text-xs focus:outline-none"
-                  />
-                  <span className="text-[10px] text-slate-500 mt-1 block">
-                    Paste any public image link (Unsplash, Discord CDN, Imgur, Cloudinary)
-                  </span>
-                </div>
-              )}
-
-              {/* Active Image Thumbnail / Confirmation */}
-              {imageUrl && (
-                <div className="p-3 bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-slate-200 border border-slate-400 overflow-hidden shrink-0">
-                      <img src={imageUrl} alt="Selected Preview" className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-emerald-900 block">
-                        ✓ Photo Selected & Attached
-                      </span>
-                      <span className="text-[10px] text-emerald-700 truncate max-w-xs block">
-                        Will be displayed on your service card in Marketplace and Catalog
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("")}
-                    className="px-2.5 py-1 text-[11px] font-bold uppercase bg-white border border-red-300 text-red-700 hover:bg-red-50 cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Pricing & Description */}
-            <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
-                3. Pricing & Scope Description
-              </h2>
-
-              <div>
-                <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
-                  Base Price (IDR / Rupiah)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-500">Rp</span>
-                  <input
-                    type="number"
-                    min="1000"
-                    step="100"
-                    value={basePrice}
-                    onChange={(e) => setBasePrice(Number(e.target.value))}
-                    required
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-white border-2 border-slate-800 focus:border-brand-navy text-brand-textMain font-mono text-sm focus:outline-none"
-                  />
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-slate-500 mt-1.5">
-                  <span>Formatted: Rp {Number(basePrice || 0).toLocaleString()}</span>
-                  <span className="text-emerald-700 font-bold">
-                    Escrow Payout: Rp {Math.round(Number(basePrice || 0) * 0.95).toLocaleString()} (95%)
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
-                  Service Description & Tuning Procedure
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Describe lubricants used (e.g. Krytox 205g0), step-by-step procedure, turnaround time, sound testing QC, and what the customer should send..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                  className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-800 focus:border-brand-navy text-brand-textMain font-mono text-xs focus:outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Configurable Options / Add-ons */}
-            <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <div>
-                  <h2 className="text-sm font-bold uppercase text-brand-textMain">
-                    4. Configurable Add-ons & Options
+                {/* Description */}
+                <div className="bg-white border-2 border-slate-900 p-6 shadow-xs space-y-4">
+                  <h2 className="text-sm font-bold uppercase text-brand-textMain border-b border-slate-200 pb-2">
+                    4. Service Description
                   </h2>
-                  <p className="text-[10px] text-brand-textMuted">
-                    Options customers can select during checkout (e.g. lube types, switch films)
-                  </p>
+                  <div>
+                    <label className="block text-xs font-mono font-bold text-brand-textMuted uppercase tracking-wider mb-1">
+                      Detailed Scope of Work *
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Describe your process step-by-step (e.g. ultrasonic cleaning, lubricant type, wire balancing method)..."
+                      value={serviceDesc}
+                      onChange={(e) => setServiceDesc(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-slate-900 font-mono text-xs focus:outline-none focus:border-brand-navy"
+                      required
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddOption}
-                  className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase transition-colors"
-                >
-                  ➕ Add Option
-                </button>
-              </div>
 
-              {options.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">
-                  No add-ons configured. Customers will pay standard base price.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {options.map((opt, idx) => (
-                    <div
-                      key={opt.id}
-                      className="p-3 bg-brand-lightBg border border-slate-300 flex flex-col sm:flex-row items-start sm:items-center gap-2.5 text-xs"
-                    >
-                      <div className="flex-1 w-full">
-                        <input
-                          type="text"
-                          placeholder="Option Name (e.g. Durock 0.3mm Films)"
-                          value={opt.optionName}
-                          onChange={(e) => handleUpdateOption(opt.id, "optionName", e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-white border border-slate-400 text-xs font-mono focus:outline-none focus:border-brand-navy"
-                        />
-                      </div>
+                {/* Submit Service */}
+                <div className="p-4 bg-brand-sidebar border-2 border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs text-brand-textMuted">
+                    ✓ Tuning service will be published to Services catalog with Escrow protection.
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isLoading={loading}
+                    className="w-full sm:w-auto px-8 py-3 uppercase font-bold text-xs tracking-wider"
+                  >
+                    {loading ? "Publishing Service..." : "🚀 Publish Tuning Service →"}
+                  </Button>
+                </div>
+              </form>
 
-                      <div className="w-full sm:w-36">
-                        <select
-                          value={opt.optionType}
-                          onChange={(e) => handleUpdateOption(opt.id, "optionType", e.target.value as ServiceOptionType)}
-                          className="w-full px-2 py-1.5 bg-white border border-slate-400 text-[11px] font-mono focus:outline-none"
-                        >
-                          <option value="LUBE_TYPE">Lube Type</option>
-                          <option value="ADDON_SERVICE">Addon Service</option>
-                          <option value="NEW_SWITCH">New Switch</option>
-                          <option value="FOAM_TYPE">Foam Type</option>
-                        </select>
-                      </div>
-
-                      <div className="w-full sm:w-32 flex items-center gap-1">
-                        <span className="text-[10px] text-slate-500 font-bold">+Rp</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="500"
-                          value={opt.extraPrice}
-                          onChange={(e) => handleUpdateOption(opt.id, "extraPrice", Number(e.target.value))}
-                          placeholder="0"
-                          className="w-full px-2 py-1.5 bg-white border border-slate-400 text-xs font-mono focus:outline-none text-right"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOption(opt.id)}
-                        className="text-red-600 hover:text-red-800 p-1.5 font-bold uppercase text-xs"
-                        title="Delete option"
-                      >
-                        ✕
-                      </button>
+              {/* Service Preview Column */}
+              <div className="space-y-4">
+                <div className="sticky top-24">
+                  <span className="block text-xs font-bold uppercase text-brand-navy mb-2">
+                    👁️ Live Service Preview:
+                  </span>
+                  <div className="bg-white border-2 border-slate-900 p-5 shadow-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase border border-brand-navy bg-brand-lightBg text-brand-navy">
+                        {serviceCategory.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        📍 {currentUser.locationCity || "Jakarta"}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Submit Bar */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Link href="/modder/dashboard">
-                <Button type="button" variant="secondary" className="text-xs uppercase font-bold">
-                  Cancel
-                </Button>
-              </Link>
-              <Button type="submit" variant="primary" isLoading={loading} className="text-xs uppercase font-bold">
-                {loading ? "Publishing to Marketplace..." : "🚀 Publish Service Listing →"}
-              </Button>
-            </div>
-          </form>
+                    <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300 mb-3 relative">
+                      <img
+                        src={serviceImageUrl || "/images/lubing-swtiches.webp"}
+                        alt="Service Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-          {/* Live Card Preview Column (1 col) */}
-          <div className="space-y-4">
-            <div className="sticky top-24">
-              <span className="block text-xs font-bold uppercase text-brand-navy mb-2">
-                👁️ Live Marketplace Preview:
-              </span>
+                    <h3 className="font-bold text-base text-brand-textMain mb-2 leading-tight">
+                      {serviceTitle || "Untitled Tuning Service"}
+                    </h3>
 
-              <div className="bg-white border-2 border-slate-900 p-5 shadow-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase border border-brand-navy bg-brand-lightBg text-brand-navy">
-                    {category.replace(/_/g, " ")}
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    📍 {currentUser.locationCity || "Jakarta"}
-                  </span>
-                </div>
+                    <p className="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed">
+                      {serviceDesc || "Service procedure and specifications will appear here..."}
+                    </p>
 
-                {/* Cover Photo Preview */}
-                <div className="h-36 bg-brand-lightBg overflow-hidden border border-slate-300 mb-3 relative group">
-                  <img
-                    src={imageUrl || getCategoryFallbackImage(category)}
-                    alt={title || "Service Preview"}
-                    className="w-full h-full object-cover"
-                  />
-                  {imageUrl && (
-                    <span className="absolute bottom-1.5 right-1.5 bg-black/75 text-white text-[9px] px-1.5 py-0.5 font-mono font-bold">
-                      ✓ Custom Photo
-                    </span>
-                  )}
-                </div>
+                    <div className="p-3 bg-brand-lightBg border border-slate-200 mb-4">
+                      <div className="text-[10px] uppercase text-brand-textMuted">Base Price</div>
+                      <div className="text-lg font-bold text-brand-navy">
+                        Rp {Number(serviceBasePrice || 0).toLocaleString()}
+                      </div>
+                      <div className="text-[10px] text-emerald-700 mt-0.5">
+                        ✓ Escrow Protected Payout
+                      </div>
+                    </div>
 
-                <h3 className="font-bold text-base text-brand-textMain mb-2 leading-tight">
-                  {title || "Untitled Tuning Service"}
-                </h3>
-
-                <p className="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed">
-                  {description || "Service procedure and specifications will appear here..."}
-                </p>
-
-                <div className="p-3 bg-brand-lightBg border border-slate-200 mb-4">
-                  <div className="text-[10px] uppercase text-brand-textMuted">Base Price</div>
-                  <div className="text-lg font-bold text-brand-navy">
-                    Rp {Number(basePrice || 0).toLocaleString()}
-                  </div>
-                  <div className="text-[10px] text-emerald-700 mt-0.5">
-                    ✓ Escrow Protected Payout
-                  </div>
-                </div>
-
-                {options.length > 0 && (
-                  <div className="mb-4">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
-                      Available Options ({options.length}):
-                    </span>
-                    <div className="space-y-1">
-                      {options.slice(0, 3).map((opt, i) => (
-                        <div key={i} className="text-[10px] text-slate-700 flex justify-between">
-                          <span className="truncate max-w-[150px]">• {opt.optionName || "Custom Option"}</span>
-                          <span className="font-bold text-slate-900">+Rp {opt.extraPrice.toLocaleString()}</span>
-                        </div>
-                      ))}
-                      {options.length > 3 && (
-                        <div className="text-[9px] text-slate-400">+{options.length - 3} more options</div>
-                      )}
+                    <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500 font-bold">By @{currentUser.name}</span>
+                      <span className="text-amber-500 font-bold">★ 5.0</span>
                     </div>
                   </div>
-                )}
-
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500 font-bold">By @{currentUser.name}</span>
-                  <span className="text-amber-500 font-bold">★ 5.0</span>
                 </div>
-              </div>
-
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-300 text-[11px] text-amber-900 leading-snug">
-                💡 <strong>Instant Marketplace Sync:</strong> When published, this listing will be immediately discoverable by keyboard enthusiasts on the <strong>Services Catalog</strong> and <strong>Marketplace</strong> pages!
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function CreateListingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-brand-lightBg flex items-center justify-center p-4 font-mono">
+          <div className="p-8 bg-brand-sidebar border-2 border-slate-900 shadow-md text-center max-w-sm w-full">
+            <div className="inline-block animate-spin w-8 h-8 border-4 border-brand-navy border-t-transparent mb-4"></div>
+            <h2 className="text-base font-bold text-brand-textMain uppercase">Loading Studio Creator...</h2>
+          </div>
+        </div>
+      }
+    >
+      <CreateListingContent />
+    </Suspense>
   );
 }

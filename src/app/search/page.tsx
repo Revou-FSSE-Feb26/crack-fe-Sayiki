@@ -372,30 +372,10 @@ function SearchContent() {
               </p>
             </div>
           </div>
-          <Link href="/marketplace/create-listing">
+          <Link href="/modder/create-listing?type=marketplace">
             <Button variant="primary" className="text-xs uppercase font-bold shrink-0">
               ➕ Create Marketplace Listing →
             </Button>
-          </Link>
-        </div>
-        {/* Cross-Link Banner to Services */}
-        <div className="mb-6 p-4 bg-amber-50 border-2 border-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">🛠️</span>
-            <div>
-              <span className="font-bold text-amber-950 uppercase block">
-                Looking for artisan keyboard tuning instead of raw parts?
-              </span>
-              <span className="text-amber-800 text-[11px]">
-                Ship your board to verified modders with 5-stage escrow protection.
-              </span>
-            </div>
-          </div>
-          <Link
-            href="/services"
-            className="px-3.5 py-1.5 bg-brand-navy text-white font-bold uppercase tracking-wider border-2 border-brand-navy hover:bg-slate-800 shrink-0"
-          >
-            Go to Modding Services Catalog →
           </Link>
         </div>
 

@@ -69,6 +69,10 @@ export default function ServicesCatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<string>("all");
+  const [turnaround, setTurnaround] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("recommended");
+  const [minRating, setMinRating] = useState<number>(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -112,29 +116,80 @@ export default function ServicesCatalogPage() {
     )
   );
 
-  const filteredServices = services.filter((service) => {
-    const matchesCategory =
-      activeCategory === "all" ||
-      service.category === activeCategory ||
-      (activeCategory === "SWITCH_MODS" && service.category === "SWITCH_MODS") ||
-      (activeCategory === "STABILIZER_MODS" && service.category === "STABILIZER_MODS") ||
-      (activeCategory === "CASE_AND_ACOUSTIC" && service.category === "CASE_AND_ACOUSTIC") ||
-      (activeCategory === "CUSTOMIZATION_AESTHETICS" && service.category === "CUSTOMIZATION_AESTHETICS");
+  const resetAllFilters = () => {
+    setSearchQuery("");
+    setActiveCategory("all");
+    setSelectedCity("all");
+    setPriceRange("all");
+    setTurnaround("all");
+    setSortBy("recommended");
+    setMinRating(0);
+  };
 
-    const city = (service.modder?.locationCity || "").toLowerCase();
-    const matchesCity = selectedCity === "all" || city.includes(selectedCity.toLowerCase());
+  const activeFiltersCount =
+    (activeCategory !== "all" ? 1 : 0) +
+    (selectedCity !== "all" ? 1 : 0) +
+    (priceRange !== "all" ? 1 : 0) +
+    (turnaround !== "all" ? 1 : 0) +
+    (minRating > 0 ? 1 : 0) +
+    (searchQuery.trim() !== "" ? 1 : 0) +
+    (sortBy !== "recommended" ? 1 : 0);
 
-    const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      service.title.toLowerCase().includes(q) ||
-      (service.description && service.description.toLowerCase().includes(q)) ||
-      (service.modder?.name && service.modder.name.toLowerCase().includes(q)) ||
-      (service.category && service.category.toLowerCase().includes(q)) ||
-      (service.options && service.options.some((opt) => opt.optionName.toLowerCase().includes(q)));
+  const filteredServices = services
+    .filter((service) => {
+      const matchesCategory =
+        activeCategory === "all" ||
+        service.category === activeCategory ||
+        (activeCategory === "SWITCH_MODS" && service.category === "SWITCH_MODS") ||
+        (activeCategory === "STABILIZER_MODS" && service.category === "STABILIZER_MODS") ||
+        (activeCategory === "CASE_AND_ACOUSTIC" && service.category === "CASE_AND_ACOUSTIC") ||
+        (activeCategory === "CUSTOMIZATION_AESTHETICS" && service.category === "CUSTOMIZATION_AESTHETICS");
 
-    return matchesCategory && matchesCity && matchesSearch;
-  });
+      const city = (service.modder?.locationCity || "").toLowerCase();
+      const matchesCity = selectedCity === "all" || city.includes(selectedCity.toLowerCase());
+
+      const turnaroundStr = getCategoryTurnaround(service.category);
+      const isFast = turnaroundStr.includes("1 Day") || turnaroundStr.includes("1-2");
+      const matchesTurnaround =
+        turnaround === "all" ||
+        (turnaround === "fast" && isFast) ||
+        (turnaround === "standard" && !isFast);
+
+      const price = service.basePrice;
+      const matchesPrice =
+        priceRange === "all" ||
+        (priceRange === "under25k" && price < 25000) ||
+        (priceRange === "25k-100k" && price >= 25000 && price <= 100000) ||
+        (priceRange === "above100k" && price > 100000);
+
+      const rating = service.modder?.avgRating || 4.9;
+      const matchesRating = minRating === 0 || rating >= minRating;
+
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        service.title.toLowerCase().includes(q) ||
+        (service.description && service.description.toLowerCase().includes(q)) ||
+        (service.modder?.name && service.modder.name.toLowerCase().includes(q)) ||
+        (service.category && service.category.toLowerCase().includes(q)) ||
+        (service.options && service.options.some((opt) => opt.optionName.toLowerCase().includes(q)));
+
+      return (
+        matchesCategory &&
+        matchesCity &&
+        matchesTurnaround &&
+        matchesPrice &&
+        matchesRating &&
+        matchesSearch
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "price_asc") return a.basePrice - b.basePrice;
+      if (sortBy === "price_desc") return b.basePrice - a.basePrice;
+      if (sortBy === "rating_desc") return (b.modder?.avgRating || 0) - (a.modder?.avgRating || 0);
+      if (sortBy === "name_asc") return a.title.localeCompare(b.title);
+      return 0; // default / recommended
+    });
 
   return (
     <div className="min-h-screen bg-brand-lightBg">
@@ -219,56 +274,146 @@ export default function ServicesCatalogPage() {
             )}
           </div>
 
-          {/* Filter Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Category Tabs */}
-            <div className="inline-flex flex-wrap bg-brand-sidebar border-2 border-slate-900 p-1">
-              {[
-                { key: "all", label: "All Services" },
-                { key: "SWITCH_MODS", label: "Switch Mods" },
-                { key: "STABILIZER_MODS", label: "Stabilizers" },
-                { key: "CASE_AND_ACOUSTIC", label: "Acoustics & Foam" },
-                { key: "CUSTOMIZATION_AESTHETICS", label: "Custom / Aesthetics" },
-              ].map((tab) => (
+          {/* Primary Category Tabs */}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex flex-wrap bg-brand-sidebar border-2 border-slate-900 p-1">
+                {[
+                  { key: "all", label: "All Services" },
+                  { key: "SWITCH_MODS", label: "Switch Mods" },
+                  { key: "STABILIZER_MODS", label: "Stabilizers" },
+                  { key: "CASE_AND_ACOUSTIC", label: "Acoustics & Foam" },
+                  { key: "CUSTOMIZATION_AESTHETICS", label: "Custom / Aesthetics" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveCategory(tab.key)}
+                    className={`px-3 sm:px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
+                      activeCategory === tab.key
+                        ? "bg-brand-navy text-white border-brand-navy"
+                        : "text-brand-textMuted border-transparent hover:text-brand-textMain"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Reset Filters Button if active */}
+              {activeFiltersCount > 0 && (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveCategory(tab.key)}
-                  className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider transition-all border ${
-                    activeCategory === tab.key
-                      ? "bg-brand-navy text-white border-brand-navy"
-                      : "text-brand-textMuted border-transparent hover:text-brand-textMain"
-                  }`}
+                  type="button"
+                  onClick={resetAllFilters}
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border-2 border-red-500 font-mono text-xs font-bold text-red-700 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
-                  {tab.label}
+                  <span>✕ Clear All Filters</span>
+                  <span className="bg-red-600 text-white px-1.5 py-0.2 text-[10px] rounded-full">
+                    {activeFiltersCount}
+                  </span>
                 </button>
-              ))}
+              )}
             </div>
 
-            {/* Location Selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold uppercase text-brand-textMuted">Location:</span>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-brand-sidebar border-2 border-slate-900 px-3 py-2 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
-              >
-                <option value="all">All Cities</option>
-                {availableCities.map((city) => (
-                  <option key={city} value={city.toLowerCase()}>
-                    {city}
-                  </option>
-                ))}
-                {availableCities.length === 0 && (
-                  <>
-                    <option value="jakarta">Jakarta</option>
-                    <option value="bandung">Bandung</option>
-                    <option value="depok">Depok</option>
-                    <option value="surabaya">Surabaya</option>
-                  </>
-                )}
-              </select>
+            {/* Secondary Granular Filters (Price, Turnaround, Location, Sorting) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-brand-sidebar border-2 border-slate-900">
+              {/* Price Filter */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase text-brand-textMuted mb-1">
+                  💰 Price Range:
+                </label>
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className="w-full bg-white border border-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
+                >
+                  <option value="all">All Prices</option>
+                  <option value="under25k">&lt; Rp 25.000 / unit</option>
+                  <option value="25k-100k">Rp 25.000 - Rp 100.000</option>
+                  <option value="above100k">&gt; Rp 100.000 / board</option>
+                </select>
+              </div>
+
+              {/* Turnaround Time */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase text-brand-textMuted mb-1">
+                  ⏳ Turnaround:
+                </label>
+                <select
+                  value={turnaround}
+                  onChange={(e) => setTurnaround(e.target.value)}
+                  className="w-full bg-white border border-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
+                >
+                  <option value="all">All Durations</option>
+                  <option value="fast">⚡ Fast (1-2 Days)</option>
+                  <option value="standard">Standard (2-4 Days)</option>
+                </select>
+              </div>
+
+              {/* Location Selector */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase text-brand-textMuted mb-1">
+                  📍 Modder City:
+                </label>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full bg-white border border-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
+                >
+                  <option value="all">All Cities</option>
+                  {availableCities.map((city) => (
+                    <option key={city} value={city.toLowerCase()}>
+                      {city}
+                    </option>
+                  ))}
+                  {availableCities.length === 0 && (
+                    <>
+                      <option value="jakarta">Jakarta</option>
+                      <option value="bandung">Bandung</option>
+                      <option value="depok">Depok</option>
+                      <option value="surabaya">Surabaya</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase text-brand-textMuted mb-1">
+                  🔄 Sort Catalog:
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full bg-white border border-slate-800 px-2.5 py-1.5 text-xs font-mono font-bold text-brand-textMain focus:border-brand-navy focus:outline-none uppercase"
+                >
+                  <option value="recommended">Featured / Default</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="rating_desc">Highest Modder Rating</option>
+                  <option value="name_asc">Service Name (A-Z)</option>
+                </select>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Cross-Link Banner to Marketplace */}
+        <div className="mb-6 p-3 bg-blue-50 border-2 border-brand-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📦</span>
+            <span className="text-brand-navy font-bold">
+              Looking for raw hardware, custom switches, or lube kits?
+            </span>
+            <span className="text-brand-textMuted hidden md:inline">
+              Shop standalone parts without booking a modder.
+            </span>
+          </div>
+          <Link
+            href="/search"
+            className="text-brand-navy font-bold underline hover:text-brand-terracotta shrink-0"
+          >
+            Visit Hardware &amp; Parts Marketplace →
+          </Link>
         </div>
 
         {/* Status / Loading / Error Indicator */}
@@ -287,15 +432,41 @@ export default function ServicesCatalogPage() {
           </div>
         )}
 
-        {/* Results Count */}
+        {/* Results Count & Empty State */}
         {!loading && (
-          <div className="mb-4 text-xs font-mono text-brand-textMuted uppercase tracking-wider">
-            Showing {filteredServices.length} live database service{filteredServices.length === 1 ? "" : "s"}
+          <div className="mb-4 text-xs font-mono text-brand-textMuted uppercase tracking-wider flex items-center justify-between">
+            <span>
+              Showing {filteredServices.length} live database service{filteredServices.length === 1 ? "" : "s"}
+            </span>
+            {activeFiltersCount > 0 && (
+              <span className="text-brand-navy font-bold">
+                ({activeFiltersCount} filter{activeFiltersCount === 1 ? "" : "s"} applied)
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredServices.length === 0 && (
+          <div className="bg-white border-2 border-slate-900 p-12 text-center my-8">
+            <div className="text-4xl mb-3">🔍</div>
+            <h3 className="text-lg font-black text-brand-textMain uppercase mb-1">
+              No Services Match Your Filters
+            </h3>
+            <p className="text-xs font-mono text-brand-textMuted uppercase tracking-wider mb-5">
+              Try adjusting your price range, turnaround time, or search keywords.
+            </p>
+            <button
+              onClick={resetAllFilters}
+              className="px-4 py-2 bg-brand-navy text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-slate-800 transition-colors"
+            >
+              Reset All Filters ✕
+            </button>
           </div>
         )}
 
         {/* Services Grid */}
-        {!loading && (
+        {!loading && filteredServices.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredServices.map((service) => (
               <div
